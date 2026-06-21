@@ -1,5 +1,5 @@
 from docagent.config import Settings
-from docagent.nodes import _parse_grades, decide
+from docagent.nodes import _parse_grades, decide, decide_node, route_from_state
 
 
 def test_parse_grades_filters_invalid_items():
@@ -50,3 +50,13 @@ def test_decide_falls_back_after_retry_limit():
     config = Settings(min_relevant_docs=1, max_retries=2)
 
     assert decide({"relevant_documents": [], "retry_count": 2}, config) == "fallback"
+
+
+def test_decide_node_records_route_and_history():
+    config = Settings(min_relevant_docs=1, max_retries=2)
+
+    result = decide_node({"relevant_documents": [], "retry_count": 0, "history": ["grade: 0/1 relevant docs"]}, config)
+
+    assert result["route"] == "rewrite"
+    assert result["history"][-1] == "decide: rewrite (relevant=0, retry=0/2)"
+    assert route_from_state(result) == "rewrite"

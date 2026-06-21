@@ -58,6 +58,8 @@ python -m docagent.main ask "你的问题" --baseline
 python -m docagent.main compare "DocAgent 使用了哪家公司的线上向量数据库？"
 ```
 
+`--show-trace` 或 `compare` 会展示 Agent 的决策轨迹，包括检索结果数量、LLM 评估的相关片段数量、分支决策、query rewrite 和 fallback 原因。
+
 更多演示问题见 [docs/demo.md](docs/demo.md)。
 
 ## 设计取舍

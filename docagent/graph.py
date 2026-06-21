@@ -4,7 +4,17 @@ from collections.abc import Callable
 
 from langgraph.graph import END, START, StateGraph
 
-from docagent.nodes import decide, fallback, generate, grade_documents, retrieve, rewrite_query, self_check
+from docagent.nodes import (
+    decide,
+    decide_node,
+    fallback,
+    generate,
+    grade_documents,
+    retrieve,
+    rewrite_query,
+    route_from_state,
+    self_check,
+)
 from docagent.state import AgentState, Route
 
 
@@ -15,7 +25,8 @@ Router = Callable[[AgentState], Route]
 def build_graph(
     retrieve_node: Node = retrieve,
     grade_node: Node = grade_documents,
-    decide_router: Router = decide,
+    decide_node_fn: Node = decide_node,
+    decide_router: Router = route_from_state,
     rewrite_node: Node = rewrite_query,
     generate_node: Node = generate,
     fallback_node: Node = fallback,
@@ -25,6 +36,7 @@ def build_graph(
 
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("grade", grade_node)
+    graph.add_node("decide", decide_node_fn)
     graph.add_node("rewrite", rewrite_node)
     graph.add_node("generate", generate_node)
     graph.add_node("fallback", fallback_node)
@@ -32,8 +44,9 @@ def build_graph(
 
     graph.add_edge(START, "retrieve")
     graph.add_edge("retrieve", "grade")
+    graph.add_edge("grade", "decide")
     graph.add_conditional_edges(
-        "grade",
+        "decide",
         decide_router,
         {
             "generate": "generate",

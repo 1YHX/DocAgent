@@ -38,13 +38,15 @@ def generate_baseline(state: AgentState) -> AgentState:
     )
     chain = prompt | build_chat_model()
     response = chain.invoke({"question": state["question"], "context": format_documents(docs)})
-    return {"answer": response.content}
+    history = state.get("history", []) + [f"baseline_generate: using {len(docs)} retrieved docs"]
+    return {"answer": response.content, "history": history}
 
 
 def grade_documents(state: AgentState, app_settings: Settings = settings) -> AgentState:
     documents = state.get("documents", [])
     if not documents:
-        return {"grades": [], "relevant_documents": []}
+        history = state.get("history", []) + ["grade: 0/0 relevant docs"]
+        return {"grades": [], "relevant_documents": [], "history": history}
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -62,7 +64,11 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
     )
     grades = _parse_grades(str(response.content), len(documents))
     relevant_docs = [documents[item["doc_index"]] for item in grades if item["relevant"]]
-    return {"grades": grades, "relevant_documents": relevant_docs}
+    history = state.get("history", []) + [
+        f"grade: {len(relevant_docs)}/{len(documents)} relevant docs",
+        *_format_grade_reasons(grades),
+    ]
+    return {"grades": grades, "relevant_documents": relevant_docs, "history": history}
 
 
 def _parse_grades(raw: str, doc_count: int) -> list[Grade]:
@@ -128,6 +134,32 @@ def decide(state: AgentState, app_settings: Settings = settings) -> Route:
     return "fallback"
 
 
+def decide_node(state: AgentState, app_settings: Settings = settings) -> AgentState:
+    route = decide(state, app_settings)
+    relevant_count = len(state.get("relevant_documents", []))
+    retry_count = state.get("retry_count", 0)
+    history = state.get("history", []) + [
+        f"decide: {route} (relevant={relevant_count}, retry={retry_count}/{app_settings.max_retries})"
+    ]
+    return {"route": route, "history": history}
+
+
+def route_from_state(state: AgentState) -> Route:
+    return state.get("route", "fallback")
+
+
+def _format_grade_reasons(grades: list[Grade]) -> list[str]:
+    reasons = []
+    for grade in grades:
+        verdict = "relevant" if grade["relevant"] else "irrelevant"
+        reason = grade["reason"].strip()
+        if reason:
+            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict} - {reason}")
+        else:
+            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict}")
+    return reasons
+
+
 def rewrite_query(state: AgentState) -> AgentState:
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -169,12 +201,15 @@ def generate(state: AgentState) -> AgentState:
     response = (prompt | build_chat_model()).invoke(
         {"question": state["question"], "context": format_documents(docs)}
     )
-    return {"answer": str(response.content)}
+    history = state.get("history", []) + [f"generate: using {len(docs)} relevant docs"]
+    return {"answer": str(response.content), "history": history}
 
 
 def fallback(state: AgentState) -> AgentState:
+    history = state.get("history", []) + ["fallback: no sufficiently relevant evidence after retries"]
     return {
         "answer": "资料中未找到相关信息。为了避免编造答案，DocAgent 不会基于当前知识库继续推测。",
+        "history": history,
     }
 
 
@@ -197,4 +232,5 @@ def self_check(state: AgentState) -> AgentState:
             "context": format_documents(docs),
         }
     )
-    return {"self_check": str(response.content)}
+    history = state.get("history", []) + [f"self_check: {response.content}"]
+    return {"self_check": str(response.content), "history": history}

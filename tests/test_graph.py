@@ -9,6 +9,9 @@ def test_graph_generates_when_grade_passes():
         return {"relevant_documents": ["doc"]}
 
     def decide(state):
+        return {"route": "generate"}
+
+    def route(state):
         return "generate"
 
     def generate(state):
@@ -20,7 +23,8 @@ def test_graph_generates_when_grade_passes():
     graph = build_graph(
         retrieve_node=retrieve,
         grade_node=grade,
-        decide_router=decide,
+        decide_node_fn=decide,
+        decide_router=route,
         generate_node=generate,
         self_check_node=self_check,
     )
@@ -40,8 +44,11 @@ def test_graph_rewrites_once_then_falls_back():
 
     def decide(state):
         if state.get("retry_count", 0) < 1:
-            return "rewrite"
-        return "fallback"
+            return {"route": "rewrite"}
+        return {"route": "fallback"}
+
+    def route(state):
+        return state["route"]
 
     def rewrite(state):
         return {"retry_count": state.get("retry_count", 0) + 1, "query": "改写后的 query"}
@@ -52,7 +59,8 @@ def test_graph_rewrites_once_then_falls_back():
     graph = build_graph(
         retrieve_node=retrieve,
         grade_node=grade,
-        decide_router=decide,
+        decide_node_fn=decide,
+        decide_router=route,
         rewrite_node=rewrite,
         fallback_node=fallback,
     )
