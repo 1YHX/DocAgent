@@ -30,7 +30,7 @@ def print_result(result: AgentState, show_trace: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="DocAgent CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("doctor", help="Check .env and local configuration.")
     subparsers.add_parser("demo", help="Run the bundled mini knowledge-base demo.")
@@ -54,6 +54,10 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        if args.command is None:
+            run_chat()
+            return
+
         if args.command == "doctor":
             raise SystemExit(run_doctor())
 

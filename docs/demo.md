@@ -7,7 +7,7 @@
 最简单方式：
 
 ```bash
-python -m docagent.main demo
+docagent demo
 ```
 
 手动方式：
@@ -15,7 +15,7 @@ python -m docagent.main demo
 ```bash
 mkdir -p data
 cp examples/mini_knowledge_base.md data/docagent_demo.md
-python -m docagent.main ingest --reset
+docagent ingest --reset
 ```
 
 ## 建议问题
@@ -23,31 +23,31 @@ python -m docagent.main ingest --reset
 进入交互式模式：
 
 ```bash
-python -m docagent.main chat --show-trace
+docagent
 ```
 
 有明确答案的问题：
 
 ```bash
-python -m docagent.main ask "DocAgent 的核心流程是什么？" --show-trace
+docagent ask "DocAgent 的核心流程是什么？" --show-trace
 ```
 
 组件选型问题：
 
 ```bash
-python -m docagent.main ask "DocAgent 使用了哪家公司的线上向量数据库？" --show-trace
+docagent ask "DocAgent 使用了哪家公司的线上向量数据库？" --show-trace
 ```
 
 需要体现拒绝编造的问题：
 
 ```bash
-python -m docagent.main ask "DocAgent 支持哪些多人协作文档权限？" --show-trace
+docagent ask "DocAgent 支持哪些多人协作文档权限？" --show-trace
 ```
 
 对照普通 RAG：
 
 ```bash
-python -m docagent.main compare "DocAgent 支持哪些多人协作文档权限？"
+docagent compare "DocAgent 支持哪些多人协作文档权限？"
 ```
 
 ## 预期观察点
