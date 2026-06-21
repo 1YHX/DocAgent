@@ -4,6 +4,14 @@
 
 ## 准备语料
 
+最简单方式：
+
+```bash
+python -m docagent.main demo
+```
+
+手动方式：
+
 ```bash
 mkdir -p data
 cp examples/mini_knowledge_base.md data/docagent_demo.md

@@ -29,6 +29,7 @@ cp .env.example .env
 填好 `.env` 后，把 `.md`、`.txt` 或 `.pdf` 放进 `data/`，然后执行：
 
 ```bash
+python -m docagent.main doctor
 python -m docagent.main ingest --reset
 python -m docagent.main ask "你的问题" --show-trace
 ```
@@ -36,10 +37,7 @@ python -m docagent.main ask "你的问题" --show-trace
 第一次试跑可以使用仓库里的迷你知识库：
 
 ```bash
-mkdir -p data
-cp examples/mini_knowledge_base.md data/docagent_demo.md
-python -m docagent.main ingest --reset
-python -m docagent.main ask "DocAgent 的核心流程是什么？" --show-trace
+python -m docagent.main demo
 ```
 
 运行普通 RAG 对照基线：

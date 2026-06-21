@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from docagent.cli import print_cli_error, run_demo, run_doctor
 from docagent.graph import build_graph
 from docagent.ingest import ingest
 from docagent.nodes import generate_baseline, retrieve
@@ -17,9 +18,22 @@ def ask(question: str, baseline: bool = False) -> AgentState:
     return build_graph().invoke(initial)
 
 
+def print_result(result: AgentState, show_trace: bool = False) -> None:
+    print(result.get("answer", ""))
+    if result.get("self_check"):
+        print(f"\nSelf-check: {result['self_check']}")
+    if show_trace and result.get("history"):
+        print("\nTrace:")
+        for item in result["history"]:
+            print(f"- {item}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="DocAgent CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("doctor", help="Check .env and local configuration.")
+    subparsers.add_parser("demo", help="Run the bundled mini knowledge-base demo.")
 
     ingest_parser = subparsers.add_parser("ingest", help="Load data/ documents into Chroma.")
     ingest_parser.add_argument("--reset", action="store_true", help="Clear the existing Chroma collection first.")
@@ -31,19 +45,23 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "ingest":
-        count = ingest(reset=args.reset)
-        print(f"Ingested {count} chunks.")
-        return
+    try:
+        if args.command == "doctor":
+            raise SystemExit(run_doctor())
 
-    result = ask(args.question, baseline=args.baseline)
-    print(result.get("answer", ""))
-    if result.get("self_check"):
-        print(f"\nSelf-check: {result['self_check']}")
-    if args.show_trace and result.get("history"):
-        print("\nTrace:")
-        for item in result["history"]:
-            print(f"- {item}")
+        if args.command == "demo":
+            run_demo()
+            return
+
+        if args.command == "ingest":
+            count = ingest(reset=args.reset)
+            print(f"Ingested {count} chunks.")
+            return
+
+        result = ask(args.question, baseline=args.baseline)
+        print_result(result, show_trace=args.show_trace)
+    except Exception as error:
+        raise SystemExit(print_cli_error(error)) from error
 
 
 if __name__ == "__main__":
