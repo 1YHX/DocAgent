@@ -10,3 +10,4 @@ __pycache__/
 .chroma/
 data/
 !data/.gitkeep
+DocAgent_任务书.md
