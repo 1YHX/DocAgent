@@ -27,6 +27,7 @@ cp .env.example .env
 ```
 
 如果后续修改了源码，重新执行一次 `pip install ".[dev]"` 让 `docagent` 命令加载最新代码。
+如果新增/修改了 `data/` 里的文档，或调整了 chunk 配置，重新执行 `docagent ingest --reset` 更新向量库。
 
 填好 `.env` 后，把 `.md`、`.txt` 或 `.pdf` 放进 `data/`，然后执行：
 

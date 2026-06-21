@@ -13,7 +13,9 @@ from docagent.nodes import (
     retrieve,
     rewrite_query,
     route_from_state,
+    revise_answer,
     self_check,
+    should_revise,
 )
 from docagent.state import AgentState, Route
 
@@ -31,6 +33,7 @@ def build_graph(
     generate_node: Node = generate,
     fallback_node: Node = fallback,
     self_check_node: Node = self_check,
+    revise_node: Node = revise_answer,
 ):
     graph = StateGraph(AgentState)
 
@@ -41,6 +44,7 @@ def build_graph(
     graph.add_node("generate", generate_node)
     graph.add_node("fallback", fallback_node)
     graph.add_node("self_check", self_check_node)
+    graph.add_node("revise", revise_node)
 
     graph.add_edge(START, "retrieve")
     graph.add_edge("retrieve", "grade")
@@ -56,7 +60,15 @@ def build_graph(
     )
     graph.add_edge("rewrite", "retrieve")
     graph.add_edge("generate", "self_check")
-    graph.add_edge("self_check", END)
+    graph.add_conditional_edges(
+        "self_check",
+        should_revise,
+        {
+            "revise": "revise",
+            "end": END,
+        },
+    )
+    graph.add_edge("revise", "self_check")
     graph.add_edge("fallback", END)
 
     return graph.compile()

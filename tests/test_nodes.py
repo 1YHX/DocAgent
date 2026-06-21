@@ -1,5 +1,5 @@
 from docagent.config import Settings
-from docagent.nodes import _parse_grades, decide, decide_node, route_from_state, search_k_for_query
+from docagent.nodes import _parse_grades, decide, decide_node, route_from_state, search_k_for_query, should_revise
 
 
 def test_parse_grades_filters_invalid_items():
@@ -67,3 +67,9 @@ def test_project_queries_expand_retrieval_k():
 
     assert search_k_for_query("易海祥有哪些项目", config) == 8
     assert search_k_for_query("DocAgent 的核心流程是什么", config) == 4
+
+
+def test_should_revise_only_once():
+    assert should_revise({"self_check": "unsupported。遗漏证据"}) == "revise"
+    assert should_revise({"self_check": "unsupported。仍有问题", "revised": True}) == "end"
+    assert should_revise({"self_check": "supported。"}) == "end"

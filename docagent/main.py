@@ -6,6 +6,7 @@ from docagent.cli import print_cli_error, run_chat, run_compare, run_demo, run_d
 from docagent.graph import build_graph
 from docagent.ingest import ingest
 from docagent.nodes import generate_baseline, retrieve
+from docagent.resume import answer_resume_project_question
 from docagent.state import AgentState
 
 
@@ -23,6 +24,9 @@ def ask(question: str, baseline: bool = False, query: str | None = None) -> Agen
         retrieved = retrieve(initial)
         answer = generate_baseline({**initial, **retrieved})
         return {**initial, **retrieved, **answer}
+    structured_answer = answer_resume_project_question(question, query=search_query)
+    if structured_answer:
+        return structured_answer
     return build_graph().invoke(initial)
 
 

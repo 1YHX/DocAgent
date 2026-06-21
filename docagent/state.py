@@ -24,5 +24,6 @@ class AgentState(TypedDict, total=False):
     relevant_documents: list[Document]
     answer: str
     self_check: str
+    revised: bool
     route: Route
     history: list[str]

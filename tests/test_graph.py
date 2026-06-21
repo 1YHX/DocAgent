@@ -70,3 +70,47 @@ def test_graph_rewrites_once_then_falls_back():
     assert result["query"] == "改写后的 query"
     assert result["retry_count"] == 1
     assert result["answer"] == "资料中未找到相关信息。"
+
+
+def test_graph_revises_unsupported_answer_once():
+    checks = []
+
+    def retrieve(state):
+        return {"documents": ["doc"]}
+
+    def grade(state):
+        return {"relevant_documents": ["doc"]}
+
+    def decide(state):
+        return {"route": "generate"}
+
+    def route(state):
+        return state["route"]
+
+    def generate(state):
+        return {"answer": "错误答案"}
+
+    def self_check(state):
+        checks.append(state["answer"])
+        if state["answer"] == "错误答案":
+            return {"self_check": "unsupported。遗漏了项目。"}
+        return {"self_check": "supported。已修正。"}
+
+    def revise(state):
+        return {"answer": "修正答案", "revised": True}
+
+    graph = build_graph(
+        retrieve_node=retrieve,
+        grade_node=grade,
+        decide_node_fn=decide,
+        decide_router=route,
+        generate_node=generate,
+        self_check_node=self_check,
+        revise_node=revise,
+    )
+
+    result = graph.invoke({"question": "问题", "query": "问题", "retry_count": 0, "history": []})
+
+    assert checks == ["错误答案", "修正答案"]
+    assert result["answer"] == "修正答案"
+    assert result["self_check"] == "supported。已修正。"

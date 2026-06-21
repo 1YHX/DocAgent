@@ -206,7 +206,11 @@ def generate(state: AgentState) -> AgentState:
             (
                 "system",
                 "你是 DocAgent，一个严谨的文档问答 Agent。必须只基于资料回答，不要补充资料外事实。"
-                "如果资料不足，明确说资料中未找到相关信息。答案末尾用“依据：”列出来源。",
+                "如果资料不足，明确说资料中未找到相关信息。"
+                "当问题要求统计、核实数量或列举条目时，可以基于资料中明确出现的不同条目名称计数，"
+                "但必须说明计数口径。处理简历时，要区分“项目经历”和“科研经历”："
+                "除非用户明确要求广义经历，否则科研经历不要计入项目数量。"
+                "答案末尾用“依据：”列出来源。",
             ),
             ("human", "问题：{question}\n\n可用资料：\n{context}\n\n请回答："),
         ]
@@ -216,6 +220,36 @@ def generate(state: AgentState) -> AgentState:
     )
     history = state.get("history", []) + [f"generate: using {len(docs)} relevant docs"]
     return {"answer": str(response.content), "history": history}
+
+
+def revise_answer(state: AgentState) -> AgentState:
+    docs = state.get("relevant_documents") or state.get("documents", [])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是 DocAgent 的答案纠错器。上一版答案已被 self-check 判定为 unsupported。"
+                "请根据资料和 self-check 的批评重写答案。必须修正遗漏、误数、误分类等问题。"
+                "如果资料支持通过枚举条目得到数量，可以明确给出数量，并说明计数口径。"
+                "处理简历时，科研经历不要计入项目数量；“项目经历”下的独立项目和明确写作“补充项目”的条目可以计入项目/补充项目。"
+                "不要保留上一版答案中的错误说法。",
+            ),
+            (
+                "human",
+                "问题：{question}\n\n资料：\n{context}\n\n上一版答案：\n{answer}\n\nSelf-check 批评：\n{self_check}\n\n请给出修正版答案：",
+            ),
+        ]
+    )
+    response = (prompt | build_chat_model()).invoke(
+        {
+            "question": question_for_prompt(state),
+            "context": format_documents(docs),
+            "answer": state.get("answer", ""),
+            "self_check": state.get("self_check", ""),
+        }
+    )
+    history = state.get("history", []) + ["revise: regenerated answer after unsupported self-check"]
+    return {"answer": str(response.content), "revised": True, "history": history}
 
 
 def fallback(state: AgentState) -> AgentState:
@@ -233,6 +267,8 @@ def self_check(state: AgentState) -> AgentState:
             (
                 "system",
                 "你是答案事实性检查器。判断答案是否完全由资料支持。"
+                "如果答案中的数量是通过枚举资料里明确出现的不同条目得到的，且条目名称都能在资料中找到，"
+                "应视为 supported。处理简历时，要区分“项目经历”和“科研经历”。"
                 "只输出 supported 或 unsupported，并附一句简短原因。",
             ),
             ("human", "问题：{question}\n答案：{answer}\n资料：\n{context}"),
@@ -247,3 +283,10 @@ def self_check(state: AgentState) -> AgentState:
     )
     history = state.get("history", []) + [f"self_check: {response.content}"]
     return {"self_check": str(response.content), "history": history}
+
+
+def should_revise(state: AgentState) -> str:
+    self_check_result = str(state.get("self_check", "")).lower()
+    if self_check_result.startswith("unsupported") and not state.get("revised", False):
+        return "revise"
+    return "end"

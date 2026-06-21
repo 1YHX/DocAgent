@@ -34,8 +34,8 @@ class Settings:
     top_k: int = _int_env("DOCAGENT_TOP_K", 4)
     min_relevant_docs: int = _int_env("DOCAGENT_MIN_RELEVANT_DOCS", 1)
     max_retries: int = _int_env("DOCAGENT_MAX_RETRIES", 2)
-    chunk_size: int = _int_env("DOCAGENT_CHUNK_SIZE", 800)
-    chunk_overlap: int = _int_env("DOCAGENT_CHUNK_OVERLAP", 120)
+    chunk_size: int = _int_env("DOCAGENT_CHUNK_SIZE", 1200)
+    chunk_overlap: int = _int_env("DOCAGENT_CHUNK_OVERLAP", 180)
 
 
 settings = Settings()
