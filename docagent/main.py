@@ -21,7 +21,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="DocAgent CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("ingest", help="Load data/ documents into Chroma.")
+    ingest_parser = subparsers.add_parser("ingest", help="Load data/ documents into Chroma.")
+    ingest_parser.add_argument("--reset", action="store_true", help="Clear the existing Chroma collection first.")
 
     ask_parser = subparsers.add_parser("ask", help="Ask a question.")
     ask_parser.add_argument("question")
@@ -31,7 +32,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "ingest":
-        count = ingest()
+        count = ingest(reset=args.reset)
         print(f"Ingested {count} chunks.")
         return
 

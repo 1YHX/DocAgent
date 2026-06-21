@@ -29,8 +29,17 @@ cp .env.example .env
 填好 `.env` 后，把 `.md`、`.txt` 或 `.pdf` 放进 `data/`，然后执行：
 
 ```bash
-python -m docagent.main ingest
+python -m docagent.main ingest --reset
 python -m docagent.main ask "你的问题" --show-trace
+```
+
+第一次试跑可以使用仓库里的迷你知识库：
+
+```bash
+mkdir -p data
+cp examples/mini_knowledge_base.md data/docagent_demo.md
+python -m docagent.main ingest --reset
+python -m docagent.main ask "DocAgent 的核心流程是什么？" --show-trace
 ```
 
 运行普通 RAG 对照基线：
@@ -38,6 +47,8 @@ python -m docagent.main ask "你的问题" --show-trace
 ```bash
 python -m docagent.main ask "你的问题" --baseline
 ```
+
+更多演示问题见 [docs/demo.md](docs/demo.md)。
 
 ## 设计取舍
 
@@ -52,7 +63,8 @@ python -m docagent.main ask "你的问题" --baseline
 - [x] 文档加载、切分、Chroma 入库
 - [x] 普通 RAG baseline
 - [x] LangGraph 版 Retrieve / Grade / Decide / Rewrite / Generate / Fallback / Self-check
-- [ ] 对照 demo 与 README 实验结果
+- [x] 对照 demo 语料与演示说明
+- [ ] README 实验结果截图/文本
 - [ ] 更完整的异常处理和单元测试
 
 ## 已知局限

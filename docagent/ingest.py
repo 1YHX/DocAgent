@@ -41,7 +41,7 @@ def split_documents(documents: list[Document], config: Settings = settings) -> l
     return chunks
 
 
-def ingest(config: Settings = settings) -> int:
+def ingest(config: Settings = settings, reset: bool = False) -> int:
     config.source_dir.mkdir(parents=True, exist_ok=True)
     documents = load_documents(config.source_dir)
     if not documents:
@@ -49,14 +49,17 @@ def ingest(config: Settings = settings) -> int:
 
     chunks = split_documents(documents, config)
     vectorstore = get_vectorstore(config)
+    if reset:
+        vectorstore.reset_collection()
     vectorstore.add_documents(chunks)
     return len(chunks)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest documents into the DocAgent Chroma index.")
-    parser.parse_args()
-    count = ingest()
+    parser.add_argument("--reset", action="store_true", help="Clear the existing Chroma collection before ingesting.")
+    args = parser.parse_args()
+    count = ingest(reset=args.reset)
     print(f"Ingested {count} chunks into {settings.persist_dir}.")
 
 

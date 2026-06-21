@@ -66,26 +66,26 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
 
 
 def _parse_grades(raw: str, doc_count: int) -> list[Grade]:
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        cleaned = cleaned.removeprefix("json").strip()
-
     try:
-        data = json.loads(cleaned)
+        data = json.loads(_extract_json_payload(raw))
     except json.JSONDecodeError:
         return []
+
+    if isinstance(data, dict):
+        data = data.get("grades") or data.get("documents") or data.get("items")
 
     grades: list[Grade] = []
     if not isinstance(data, list):
         return grades
 
+    seen_indexes: set[int] = set()
     for item in data:
         if not isinstance(item, dict):
             continue
         index = item.get("doc_index")
-        if not isinstance(index, int) or index < 0 or index >= doc_count:
+        if not isinstance(index, int) or index < 0 or index >= doc_count or index in seen_indexes:
             continue
+        seen_indexes.add(index)
         grades.append(
             {
                 "doc_index": index,
@@ -94,6 +94,29 @@ def _parse_grades(raw: str, doc_count: int) -> list[Grade]:
             }
         )
     return grades
+
+
+def _extract_json_payload(raw: str) -> str:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    array_start = cleaned.find("[")
+    array_end = cleaned.rfind("]")
+    if array_start != -1 and array_end != -1 and array_end > array_start:
+        return cleaned[array_start : array_end + 1]
+
+    object_start = cleaned.find("{")
+    object_end = cleaned.rfind("}")
+    if object_start != -1 and object_end != -1 and object_end > object_start:
+        return cleaned[object_start : object_end + 1]
+
+    return cleaned
 
 
 def decide(state: AgentState, app_settings: Settings = settings) -> Route:
