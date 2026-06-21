@@ -1,5 +1,5 @@
 from docagent.config import Settings
-from docagent.nodes import _parse_grades, decide, decide_node, route_from_state
+from docagent.nodes import _parse_grades, decide, decide_node, route_from_state, search_k_for_query
 
 
 def test_parse_grades_filters_invalid_items():
@@ -60,3 +60,10 @@ def test_decide_node_records_route_and_history():
     assert result["route"] == "rewrite"
     assert result["history"][-1] == "decide: rewrite (relevant=0, retry=0/2)"
     assert route_from_state(result) == "rewrite"
+
+
+def test_project_queries_expand_retrieval_k():
+    config = Settings(top_k=4)
+
+    assert search_k_for_query("易海祥有哪些项目", config) == 8
+    assert search_k_for_query("DocAgent 的核心流程是什么", config) == 4

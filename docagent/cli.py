@@ -56,9 +56,14 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
 
     trace_enabled = show_trace
     baseline_enabled = baseline
+    last_question: str | None = None
+    last_answer: str | None = None
 
     print("DocAgent chat")
-    print("Type a question and press Enter. Commands: /help, /trace on|off, /baseline on|off, /compare <question>, /exit")
+    print(
+        "Type a question and press Enter. Commands: /help, /trace on|off, "
+        "/baseline on|off, /compare <question>, /reset, /exit"
+    )
 
     while True:
         try:
@@ -77,7 +82,13 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             print("- /trace on|off       Show or hide retrieve/rewrite trace.")
             print("- /baseline on|off    Switch between baseline RAG and DocAgent.")
             print("- /compare <question> Compare baseline RAG with DocAgent for one question.")
+            print("- /reset              Clear chat context.")
             print("- /exit               Leave chat.")
+            continue
+        if user_input == "/reset":
+            last_question = None
+            last_answer = None
+            print("chat context cleared")
             continue
         if user_input.startswith("/trace"):
             trace_enabled = _parse_toggle(user_input, trace_enabled, "/trace")
@@ -96,10 +107,25 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             continue
 
         try:
-            result = ask(user_input, baseline=baseline_enabled)
+            contextual_query = build_contextual_query(user_input, last_question, last_answer)
+            result = ask(user_input, baseline=baseline_enabled, query=contextual_query)
             print_result(result, show_trace=trace_enabled)
+            last_question = user_input
+            last_answer = result.get("answer", "")
         except Exception as error:
             print_cli_error(error)
+
+
+def build_contextual_query(question: str, last_question: str | None, last_answer: str | None) -> str:
+    if not last_question:
+        return question
+
+    del last_answer
+
+    query = f"{last_question}；{question}"
+    if any(keyword in question for keyword in ["几个", "多少", "三个", "第三", "还有", "不是"]):
+        query += "；核实项目列表、项目数量、是否存在补充项目"
+    return query
 
 
 def _parse_toggle(command: str, current: bool, prefix: str) -> bool:

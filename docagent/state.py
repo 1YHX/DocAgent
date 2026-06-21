@@ -16,6 +16,7 @@ class Grade(TypedDict):
 
 class AgentState(TypedDict, total=False):
     question: str
+    standalone_question: str
     query: str
     retry_count: int
     documents: list[Document]

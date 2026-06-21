@@ -9,8 +9,16 @@ from docagent.nodes import generate_baseline, retrieve
 from docagent.state import AgentState
 
 
-def ask(question: str, baseline: bool = False) -> AgentState:
-    initial: AgentState = {"question": question, "query": question, "retry_count": 0, "history": []}
+def ask(question: str, baseline: bool = False, query: str | None = None) -> AgentState:
+    search_query = query or question
+    history = [] if query is None else [f"contextual_query: {search_query}"]
+    initial: AgentState = {
+        "question": question,
+        "standalone_question": search_query,
+        "query": search_query,
+        "retry_count": 0,
+        "history": history,
+    }
     if baseline:
         retrieved = retrieve(initial)
         answer = generate_baseline({**initial, **retrieved})
@@ -22,6 +30,8 @@ def print_result(result: AgentState, show_trace: bool = False) -> None:
     print(result.get("answer", ""))
     if result.get("self_check"):
         print(f"\nSelf-check: {result['self_check']}")
+        if str(result["self_check"]).lower().startswith("unsupported"):
+            print("Warning: self-check marked this answer as unsupported by the retrieved evidence.")
     if show_trace and result.get("history"):
         print("\nTrace:")
         for item in result["history"]:

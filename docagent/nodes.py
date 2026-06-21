@@ -20,12 +20,23 @@ def format_documents(documents: list[Document]) -> str:
     return "\n\n".join(blocks)
 
 
+def question_for_prompt(state: AgentState) -> str:
+    return state.get("standalone_question") or state["question"]
+
+
 def retrieve(state: AgentState, app_settings: Settings = settings) -> AgentState:
     query = state.get("query") or state["question"]
-    retriever = get_vectorstore(app_settings).as_retriever(search_kwargs={"k": app_settings.top_k})
+    search_k = search_k_for_query(query, app_settings)
+    retriever = get_vectorstore(app_settings).as_retriever(search_kwargs={"k": search_k})
     documents = retriever.invoke(query)
-    history = state.get("history", []) + [f"retrieve: {query} -> {len(documents)} docs"]
+    history = state.get("history", []) + [f"retrieve: {query} -> {len(documents)} docs (k={search_k})"]
     return {"query": query, "documents": documents, "history": history}
+
+
+def search_k_for_query(query: str, app_settings: Settings = settings) -> int:
+    if any(keyword in query for keyword in ["项目", "经历", "列表", "几个", "多少", "第三", "还有"]):
+        return max(app_settings.top_k, 8)
+    return app_settings.top_k
 
 
 def generate_baseline(state: AgentState) -> AgentState:
@@ -37,7 +48,7 @@ def generate_baseline(state: AgentState) -> AgentState:
         ]
     )
     chain = prompt | build_chat_model()
-    response = chain.invoke({"question": state["question"], "context": format_documents(docs)})
+    response = chain.invoke({"question": question_for_prompt(state), "context": format_documents(docs)})
     history = state.get("history", []) + [f"baseline_generate: using {len(docs)} retrieved docs"]
     return {"answer": response.content, "history": history}
 
@@ -53,6 +64,8 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
             (
                 "system",
                 "你是 RAG 检索质量评估器。判断每个片段是否包含回答问题所需的信息。"
+                "如果问题在核实列表、数量或是否遗漏，包含候选条目、项目细节或经历条目的片段也算相关，"
+                "即使片段没有直接写出总数。"
                 "只输出 JSON 数组，不要输出 Markdown。每项格式："
                 '{{"doc_index": 0, "relevant": true, "reason": "简短原因"}}',
             ),
@@ -60,7 +73,7 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
         ]
     )
     response = (prompt | build_chat_model()).invoke(
-        {"question": state["question"], "context": format_documents(documents)}
+        {"question": question_for_prompt(state), "context": format_documents(documents)}
     )
     grades = _parse_grades(str(response.content), len(documents))
     relevant_docs = [documents[item["doc_index"]] for item in grades if item["relevant"]]
@@ -176,7 +189,7 @@ def rewrite_query(state: AgentState) -> AgentState:
     )
     response = (prompt | build_chat_model()).invoke(
         {
-            "question": state["question"],
+            "question": question_for_prompt(state),
             "query": state.get("query", state["question"]),
             "grades": json.dumps(state.get("grades", []), ensure_ascii=False),
         }
@@ -199,7 +212,7 @@ def generate(state: AgentState) -> AgentState:
         ]
     )
     response = (prompt | build_chat_model()).invoke(
-        {"question": state["question"], "context": format_documents(docs)}
+        {"question": question_for_prompt(state), "context": format_documents(docs)}
     )
     history = state.get("history", []) + [f"generate: using {len(docs)} relevant docs"]
     return {"answer": str(response.content), "history": history}
@@ -227,7 +240,7 @@ def self_check(state: AgentState) -> AgentState:
     )
     response = (prompt | build_chat_model()).invoke(
         {
-            "question": state["question"],
+            "question": question_for_prompt(state),
             "answer": state.get("answer", ""),
             "context": format_documents(docs),
         }
