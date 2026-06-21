@@ -52,7 +52,7 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
                 "system",
                 "你是 RAG 检索质量评估器。判断每个片段是否包含回答问题所需的信息。"
                 "只输出 JSON 数组，不要输出 Markdown。每项格式："
-                '{"doc_index": 0, "relevant": true, "reason": "简短原因"}',
+                '{{"doc_index": 0, "relevant": true, "reason": "简短原因"}}',
             ),
             ("human", "问题：{question}\n\n候选片段：\n{context}"),
         ]

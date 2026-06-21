@@ -11,3 +11,4 @@ __pycache__/
 data/
 !data/.gitkeep
 DocAgent_任务书.md
+image*.png
