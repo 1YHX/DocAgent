@@ -32,16 +32,22 @@ python -m docagent.main chat --show-trace
 python -m docagent.main ask "DocAgent 的核心流程是什么？" --show-trace
 ```
 
-需要体现拒绝编造的问题：
+组件选型问题：
 
 ```bash
 python -m docagent.main ask "DocAgent 使用了哪家公司的线上向量数据库？" --show-trace
 ```
 
+需要体现拒绝编造的问题：
+
+```bash
+python -m docagent.main ask "DocAgent 支持哪些多人协作文档权限？" --show-trace
+```
+
 对照普通 RAG：
 
 ```bash
-python -m docagent.main compare "DocAgent 使用了哪家公司的线上向量数据库？"
+python -m docagent.main compare "DocAgent 支持哪些多人协作文档权限？"
 ```
 
 ## 预期观察点
