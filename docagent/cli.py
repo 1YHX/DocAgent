@@ -31,6 +31,26 @@ def run_demo() -> AgentState:
     return result
 
 
+def run_compare(question: str, show_trace: bool = True) -> tuple[AgentState, AgentState]:
+    from docagent.main import ask, print_result
+
+    print("Baseline RAG")
+    print("=" * 12)
+    baseline_result = ask(question, baseline=True)
+    print_result(baseline_result, show_trace=show_trace)
+
+    print("\nDocAgent")
+    print("=" * 8)
+    agent_result = ask(question, baseline=False)
+    print_result(agent_result, show_trace=show_trace)
+
+    print("\nComparison")
+    print("=" * 10)
+    print("- Baseline RAG: retrieves once, then generates directly.")
+    print("- DocAgent: grades retrieved evidence before deciding whether to answer, rewrite, or fallback.")
+    return baseline_result, agent_result
+
+
 def run_doctor(config: Settings = settings) -> int:
     checks = [
         ("CHAT_API_KEY", bool(config.chat_api_key), "required for grade/rewrite/generate/self-check"),

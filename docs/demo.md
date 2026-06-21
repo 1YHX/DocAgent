@@ -35,7 +35,7 @@ python -m docagent.main ask "DocAgent 使用了哪家公司的线上向量数据
 对照普通 RAG：
 
 ```bash
-python -m docagent.main ask "DocAgent 使用了哪家公司的线上向量数据库？" --baseline
+python -m docagent.main compare "DocAgent 使用了哪家公司的线上向量数据库？"
 ```
 
 ## 预期观察点

@@ -46,6 +46,12 @@ python -m docagent.main demo
 python -m docagent.main ask "你的问题" --baseline
 ```
 
+对比普通 RAG 和 DocAgent：
+
+```bash
+python -m docagent.main compare "DocAgent 使用了哪家公司的线上向量数据库？"
+```
+
 更多演示问题见 [docs/demo.md](docs/demo.md)。
 
 ## 设计取舍
