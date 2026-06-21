@@ -20,6 +20,12 @@ python -m docagent.main ingest --reset
 
 ## 建议问题
 
+进入交互式模式：
+
+```bash
+python -m docagent.main chat --show-trace
+```
+
 有明确答案的问题：
 
 ```bash

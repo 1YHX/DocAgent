@@ -40,6 +40,12 @@ python -m docagent.main ask "你的问题" --show-trace
 python -m docagent.main demo
 ```
 
+进入交互式聊天：
+
+```bash
+python -m docagent.main chat --show-trace
+```
+
 运行普通 RAG 对照基线：
 
 ```bash

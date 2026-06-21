@@ -51,6 +51,69 @@ def run_compare(question: str, show_trace: bool = True) -> tuple[AgentState, Age
     return baseline_result, agent_result
 
 
+def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
+    from docagent.main import ask, print_result
+
+    trace_enabled = show_trace
+    baseline_enabled = baseline
+
+    print("DocAgent chat")
+    print("Type a question and press Enter. Commands: /help, /trace on|off, /baseline on|off, /compare <question>, /exit")
+
+    while True:
+        try:
+            user_input = input("\ndocagent> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nbye")
+            return
+
+        if not user_input:
+            continue
+        if user_input in {"/exit", "/quit", "exit", "quit"}:
+            print("bye")
+            return
+        if user_input == "/help":
+            print("Commands:")
+            print("- /trace on|off       Show or hide retrieve/rewrite trace.")
+            print("- /baseline on|off    Switch between baseline RAG and DocAgent.")
+            print("- /compare <question> Compare baseline RAG with DocAgent for one question.")
+            print("- /exit               Leave chat.")
+            continue
+        if user_input.startswith("/trace"):
+            trace_enabled = _parse_toggle(user_input, trace_enabled, "/trace")
+            print(f"trace: {'on' if trace_enabled else 'off'}")
+            continue
+        if user_input.startswith("/baseline"):
+            baseline_enabled = _parse_toggle(user_input, baseline_enabled, "/baseline")
+            print(f"baseline: {'on' if baseline_enabled else 'off'}")
+            continue
+        if user_input.startswith("/compare "):
+            question = user_input.removeprefix("/compare ").strip()
+            if not question:
+                print("Usage: /compare <question>")
+                continue
+            run_compare(question, show_trace=trace_enabled)
+            continue
+
+        try:
+            result = ask(user_input, baseline=baseline_enabled)
+            print_result(result, show_trace=trace_enabled)
+        except Exception as error:
+            print_cli_error(error)
+
+
+def _parse_toggle(command: str, current: bool, prefix: str) -> bool:
+    parts = command.split()
+    if len(parts) == 1:
+        return not current
+    if len(parts) == 2 and parts[1] in {"on", "true", "1"}:
+        return True
+    if len(parts) == 2 and parts[1] in {"off", "false", "0"}:
+        return False
+    print(f"Usage: {prefix} on|off")
+    return current
+
+
 def run_doctor(config: Settings = settings) -> int:
     checks = [
         ("CHAT_API_KEY", bool(config.chat_api_key), "required for grade/rewrite/generate/self-check"),

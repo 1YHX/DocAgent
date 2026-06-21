@@ -28,3 +28,10 @@ def test_run_compare_calls_baseline_and_agent(monkeypatch, capsys):
     assert "Baseline RAG" in output
     assert "DocAgent" in output
     assert "Comparison" in output
+
+
+def test_parse_toggle():
+    assert cli._parse_toggle("/trace on", False, "/trace") is True
+    assert cli._parse_toggle("/trace off", True, "/trace") is False
+    assert cli._parse_toggle("/trace", False, "/trace") is True
+    assert cli._parse_toggle("/trace maybe", True, "/trace") is True
