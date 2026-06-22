@@ -67,21 +67,23 @@ docagent compare "DocAgent 使用了哪家公司的线上向量数据库？"
 
 ## 对照实验
 
-> 用 `python scripts/benchmark.py --md` 在自己的知识库上跑出结果，填入下表。
+知识库：`data/docagent_demo.md`（DocAgent 介绍）+ `data/易海祥-简历.pdf`，共 5 chunks。
 
-| # | 问题类型 | Baseline RAG | DocAgent | 差异 |
-|---|---------|-------------|---------|------|
-| 1 | 知识库内有答案 | 正确回答 | 正确回答，附来源 | 来源引用更完整 |
-| 2 | 问法与文档措辞不一致 | 召回偏，答案可能错误 | 改写 query 后命中，答案正确 | 关键差异：自动 query rewrite |
-| 3 | 知识库内无答案 | **编造内容（幻觉）** | 明确回答「未找到」 | 核心价值：拒绝编造 |
-| 4 | 需要列举/计数 | 遗漏条目或数量错误 | Grade 循环确保覆盖更完整 | 减少遗漏 |
+| # | 问题 | Baseline RAG | DocAgent | 关键差异 |
+|---|------|-------------|---------|---------|
+| 1 | DocAgent 的核心流程是什么？ | ✅ 正确（直接检索命中） | ✅ 正确，Grade 过滤掉 3 个简历无关片段，仅用 1 个相关片段生成 | Baseline 把简历 chunk 也喂进 prompt；DocAgent 精准过滤 |
+| 2 | 这个系统是怎么防止 AI 胡说八道的？ | ✅ 正确（问法换了但向量还是命中） | ✅ 正确，Grade 识别出 `chunk[2]` 相关（描述兜底策略），过滤掉其余 3 个简历片段 | 两者均命中，DocAgent 多了 self-check 验证 |
+| 3 | DocAgent 支持多少种语言？（知识库内无答案） | ⚠️ **回答"未提及"但措辞模糊**，没有明确拒绝 | ✅ **明确返回"资料中未找到相关信息"**，经历了 2 次 query rewrite 后 fallback | 核心差异：DocAgent 重查 2 轮（改写为"语言种类"→"编程语言或自然语言"）后确认无答案，主动拒绝编造 |
+| 4 | 知识库里提到了哪些 Agent 节点？ | ✅ 正确列出 5 个节点 | ✅ 正确列出 5 个节点，self-check: supported | 两者均正确；DocAgent 多了 self-check 验证引用来源 |
 
-运行对照实验：
+**运行对照实验**（需先 `docagent ingest`）：
 
 ```bash
 python scripts/benchmark.py           # 文本输出
 python scripts/benchmark.py --md      # Markdown 表格
 ```
+
+**结论**：DocAgent 相比 Baseline 的核心优势在第 3 题体现得最明显——对知识库外的问题，Baseline 给了模糊的"未提及"（用户可能误以为是答案），DocAgent 经过两轮 query rewrite 确认无法找到后，**明确拒绝回答**，不会引发幻觉。
 
 ## 设计取舍
 
