@@ -25,5 +25,6 @@ class AgentState(TypedDict, total=False):
     answer: str
     self_check: str
     revised: bool
+    streamed: bool
     route: Route
     history: list[str]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -9,6 +10,8 @@ from docagent.config import Settings, settings
 from docagent.models import build_chat_model
 from docagent.state import AgentState, Grade, Route
 from docagent.vectorstore import get_vectorstore
+
+TokenCallback = Callable[[str], None]
 
 
 def format_documents(documents: list[Document]) -> str:
@@ -204,57 +207,80 @@ def rewrite_query(state: AgentState) -> AgentState:
     return {"query": rewritten, "retry_count": retry_count, "history": history}
 
 
-def generate(state: AgentState) -> AgentState:
-    docs = state.get("relevant_documents") or state.get("documents", [])
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "你是 DocAgent，一个严谨的文档问答 Agent。必须只基于资料回答，不要补充资料外事实。"
-                "如果资料不足，明确说资料中未找到相关信息。"
-                "当问题要求统计、核实数量或列举条目时，可以基于资料中明确出现的不同条目名称计数，"
-                "但必须说明计数口径。处理简历时，要区分“项目经历”和“科研经历”："
-                "除非用户明确要求广义经历，否则科研经历不要计入项目数量。"
-                "答案末尾用“依据：”列出来源。",
-            ),
-            ("human", "问题：{question}\n\n可用资料：\n{context}\n\n请回答："),
-        ]
-    )
-    response = (prompt | build_chat_model()).invoke(
-        {"question": question_for_prompt(state), "context": format_documents(docs)}
-    )
-    history = state.get("history", []) + [f"generate: using {len(docs)} relevant docs"]
-    return {"answer": str(response.content), "history": history}
+def make_generate_node(on_token: TokenCallback | None = None) -> Callable[[AgentState], AgentState]:
+    def _generate(state: AgentState) -> AgentState:
+        docs = state.get("relevant_documents") or state.get("documents", [])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "你是 DocAgent，一个严谨的文档问答 Agent。必须只基于资料回答，不要补充资料外事实。"
+                    "如果资料不足，明确说资料中未找到相关信息。"
+                    "当问题要求统计、核实数量或列举条目时，可以基于资料中明确出现的不同条目名称计数，"
+                    "但必须说明计数口径。处理简历时，要区分“项目经历”和“科研经历”："
+                    "除非用户明确要求广义经历，否则科研经历不要计入项目数量。"
+                    "答案末尾用“依据：”列出来源。",
+                ),
+                ("human", "问题：{question}\n\n可用资料：\n{context}\n\n请回答："),
+            ]
+        )
+        chain = prompt | build_chat_model()
+        input_dict = {"question": question_for_prompt(state), "context": format_documents(docs)}
+        if on_token:
+            chunks = [chunk.content for chunk in chain.stream(input_dict) if chunk.content]
+            for chunk in chunks:
+                on_token(chunk)
+            answer = "".join(chunks)
+        else:
+            answer = str(chain.invoke(input_dict).content)
+        history = state.get("history", []) + [f"generate: using {len(docs)} relevant docs"]
+        return {"answer": answer, "streamed": on_token is not None, "history": history}
+
+    return _generate
 
 
-def revise_answer(state: AgentState) -> AgentState:
-    docs = state.get("relevant_documents") or state.get("documents", [])
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "你是 DocAgent 的答案纠错器。上一版答案已被 self-check 判定为 unsupported。"
-                "请根据资料和 self-check 的批评重写答案。必须修正遗漏、误数、误分类等问题。"
-                "如果资料支持通过枚举条目得到数量，可以明确给出数量，并说明计数口径。"
-                "处理简历时，科研经历不要计入项目数量；“项目经历”下的独立项目和明确写作“补充项目”的条目可以计入项目/补充项目。"
-                "不要保留上一版答案中的错误说法。",
-            ),
-            (
-                "human",
-                "问题：{question}\n\n资料：\n{context}\n\n上一版答案：\n{answer}\n\nSelf-check 批评：\n{self_check}\n\n请给出修正版答案：",
-            ),
-        ]
-    )
-    response = (prompt | build_chat_model()).invoke(
-        {
+def make_revise_node(on_token: TokenCallback | None = None) -> Callable[[AgentState], AgentState]:
+    def _revise(state: AgentState) -> AgentState:
+        docs = state.get("relevant_documents") or state.get("documents", [])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "你是 DocAgent 的答案纠错器。上一版答案已被 self-check 判定为 unsupported。"
+                    "请根据资料和 self-check 的批评重写答案。必须修正遗漏、误数、误分类等问题。"
+                    "如果资料支持通过枚举条目得到数量，可以明确给出数量，并说明计数口径。"
+                    "处理简历时，科研经历不要计入项目数量；“项目经历”下的独立项目和明确写作“补充项目”的条目可以计入项目/补充项目。"
+                    "不要保留上一版答案中的错误说法。",
+                ),
+                (
+                    "human",
+                    "问题：{question}\n\n资料：\n{context}\n\n上一版答案：\n{answer}\n\nSelf-check 批评：\n{self_check}\n\n请给出修正版答案：",
+                ),
+            ]
+        )
+        chain = prompt | build_chat_model()
+        input_dict = {
             "question": question_for_prompt(state),
             "context": format_documents(docs),
             "answer": state.get("answer", ""),
             "self_check": state.get("self_check", ""),
         }
-    )
-    history = state.get("history", []) + ["revise: regenerated answer after unsupported self-check"]
-    return {"answer": str(response.content), "revised": True, "history": history}
+        if on_token:
+            on_token("\n\n[答案已修正]\n")
+            chunks = [chunk.content for chunk in chain.stream(input_dict) if chunk.content]
+            for chunk in chunks:
+                on_token(chunk)
+            answer = "".join(chunks)
+        else:
+            answer = str(chain.invoke(input_dict).content)
+        history = state.get("history", []) + ["revise: regenerated answer after unsupported self-check"]
+        return {"answer": answer, "revised": True, "streamed": on_token is not None, "history": history}
+
+    return _revise
+
+
+generate = make_generate_node()
+revise_answer = make_revise_node()
 
 
 def fallback(state: AgentState) -> AgentState:

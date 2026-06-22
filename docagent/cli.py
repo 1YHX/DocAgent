@@ -197,7 +197,18 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
 
         try:
             contextual_query = build_contextual_query(user_input, last_question, last_answer)
-            result = ask(user_input, baseline=baseline_enabled, query=contextual_query)
+
+            def _on_token(chunk: str) -> None:
+                print(chunk, end="", flush=True)
+
+            result = ask(
+                user_input,
+                baseline=baseline_enabled,
+                query=contextual_query,
+                on_token=None if baseline_enabled else _on_token,
+            )
+            if result.get("streamed"):
+                print()
             print_result(result, show_trace=trace_enabled)
             last_question = user_input
             last_answer = result.get("answer", "")

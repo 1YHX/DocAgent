@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 
 from docagent.cli import print_cli_error, run_chat, run_compare, run_demo, run_doctor, run_sources, run_status
 from docagent.graph import build_graph
@@ -10,7 +11,12 @@ from docagent.resume import answer_resume_project_question
 from docagent.state import AgentState
 
 
-def ask(question: str, baseline: bool = False, query: str | None = None) -> AgentState:
+def ask(
+    question: str,
+    baseline: bool = False,
+    query: str | None = None,
+    on_token: Callable[[str], None] | None = None,
+) -> AgentState:
     search_query = query or question
     history = [] if query is None else [f"contextual_query: {search_query}"]
     initial: AgentState = {
@@ -27,11 +33,12 @@ def ask(question: str, baseline: bool = False, query: str | None = None) -> Agen
     structured_answer = answer_resume_project_question(question, query=search_query)
     if structured_answer:
         return structured_answer
-    return build_graph().invoke(initial)
+    return build_graph(on_token=on_token).invoke(initial)
 
 
 def print_result(result: AgentState, show_trace: bool = False) -> None:
-    print(result.get("answer", ""))
+    if not result.get("streamed"):
+        print(result.get("answer", ""))
     if result.get("self_check"):
         print(f"\nSelf-check: {result['self_check']}")
         if str(result["self_check"]).lower().startswith("unsupported"):

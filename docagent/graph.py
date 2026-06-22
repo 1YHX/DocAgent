@@ -5,11 +5,14 @@ from collections.abc import Callable
 from langgraph.graph import END, START, StateGraph
 
 from docagent.nodes import (
+    TokenCallback,
     decide,
     decide_node,
     fallback,
     generate,
     grade_documents,
+    make_generate_node,
+    make_revise_node,
     retrieve,
     rewrite_query,
     route_from_state,
@@ -30,21 +33,25 @@ def build_graph(
     decide_node_fn: Node = decide_node,
     decide_router: Router = route_from_state,
     rewrite_node: Node = rewrite_query,
-    generate_node: Node = generate,
+    generate_node: Node | None = None,
     fallback_node: Node = fallback,
     self_check_node: Node = self_check,
-    revise_node: Node = revise_answer,
+    revise_node: Node | None = None,
+    on_token: TokenCallback | None = None,
 ):
+    _generate_node = generate_node or (make_generate_node(on_token) if on_token else generate)
+    _revise_node = revise_node or (make_revise_node(on_token) if on_token else revise_answer)
+
     graph = StateGraph(AgentState)
 
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("grade", grade_node)
     graph.add_node("decide", decide_node_fn)
     graph.add_node("rewrite", rewrite_node)
-    graph.add_node("generate", generate_node)
+    graph.add_node("generate", _generate_node)
     graph.add_node("fallback", fallback_node)
     graph.add_node("self_check", self_check_node)
-    graph.add_node("revise", revise_node)
+    graph.add_node("revise", _revise_node)
 
     graph.add_edge(START, "retrieve")
     graph.add_edge("retrieve", "grade")
