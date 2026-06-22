@@ -14,7 +14,10 @@ def _int_env(name: str, default: int) -> int:
     value = os.getenv(name)
     if value is None or value == "":
         return default
-    return int(value)
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"{name}={value!r} is not a valid integer.") from None
 
 
 @dataclass(frozen=True)

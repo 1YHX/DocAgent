@@ -25,7 +25,7 @@ def answer_resume_project_question(
     projects = []
     research_items = []
     sources = []
-    for pdf_path in sorted(config.source_dir.glob("*.pdf")):
+    for pdf_path in sorted(config.source_dir.rglob("*.pdf")):
         text = _load_pdf_text(pdf_path)
         extracted_projects = extract_project_titles(text)
         extracted_research = extract_research_titles(text)

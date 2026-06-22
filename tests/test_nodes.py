@@ -1,5 +1,16 @@
 from docagent.config import Settings
-from docagent.nodes import _parse_grades, decide, decide_node, route_from_state, search_k_for_query, should_revise
+from docagent.nodes import (
+    _extract_json_payload,
+    _parse_grades,
+    decide,
+    decide_node,
+    fallback,
+    format_documents,
+    route_from_state,
+    search_k_for_query,
+    should_revise,
+)
+from langchain_core.documents import Document
 
 
 def test_parse_grades_filters_invalid_items():
@@ -73,3 +84,57 @@ def test_should_revise_only_once():
     assert should_revise({"self_check": "unsupported。遗漏证据"}) == "revise"
     assert should_revise({"self_check": "unsupported。仍有问题", "revised": True}) == "end"
     assert should_revise({"self_check": "supported。"}) == "end"
+
+
+def test_extract_json_payload_strips_markdown_fence():
+    raw = "```json\n[{\"a\": 1}]\n```"
+    assert _extract_json_payload(raw) == '[{"a": 1}]'
+
+
+def test_extract_json_payload_extracts_array_from_prose():
+    raw = 'here is the result: [{"doc_index": 0, "relevant": true}] done.'
+    assert _extract_json_payload(raw) == '[{"doc_index": 0, "relevant": true}]'
+
+
+def test_extract_json_payload_prefers_inner_array():
+    # The function finds the outermost [ ] first; for {"grades": []} it extracts []
+    raw = '{"grades": []}'
+    assert _extract_json_payload(raw) == "[]"
+
+
+def test_extract_json_payload_extracts_pure_object_when_no_array():
+    raw = '{"key": "value"}'
+    assert _extract_json_payload(raw) == '{"key": "value"}'
+
+
+def test_extract_json_payload_returns_cleaned_on_no_match():
+    raw = "  no json here  "
+    assert _extract_json_payload(raw) == "no json here"
+
+
+def test_parse_grades_returns_empty_list_on_malformed_json():
+    assert _parse_grades("not json at all", doc_count=3) == []
+
+
+def test_format_documents_includes_source_and_chunk_id():
+    docs = [
+        Document(page_content="Hello world", metadata={"source": "a.md", "chunk_id": 0}),
+        Document(page_content="Second chunk", metadata={"source": "b.md", "chunk_id": 1}),
+    ]
+    output = format_documents(docs)
+    assert "[1] source=a.md chunk=0" in output
+    assert "[2] source=b.md chunk=1" in output
+    assert "Hello world" in output
+
+
+def test_format_documents_handles_missing_metadata():
+    docs = [Document(page_content="bare")]
+    output = format_documents(docs)
+    assert "source=unknown" in output
+    assert "chunk=?" in output
+
+
+def test_fallback_returns_fixed_answer():
+    result = fallback({"question": "test", "history": []})
+    assert "资料中未找到" in result["answer"]
+    assert result["history"][-1].startswith("fallback:")

@@ -195,8 +195,11 @@ def rewrite_query(state: AgentState) -> AgentState:
         }
     )
     retry_count = state.get("retry_count", 0) + 1
-    history = state.get("history", []) + [f"rewrite[{retry_count}]: {response.content}"]
-    return {"query": str(response.content).strip(), "retry_count": retry_count, "history": history}
+    rewritten = str(response.content).strip()
+    if not rewritten:
+        rewritten = state.get("query") or state["question"]
+    history = state.get("history", []) + [f"rewrite[{retry_count}]: {rewritten}"]
+    return {"query": rewritten, "retry_count": retry_count, "history": history}
 
 
 def generate(state: AgentState) -> AgentState:

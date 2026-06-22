@@ -51,6 +51,16 @@ def ingest(config: Settings = settings, reset: bool = False) -> int:
     vectorstore = get_vectorstore(config)
     if reset:
         vectorstore.reset_collection()
+    else:
+        existing = vectorstore.get()
+        if existing and existing.get("ids"):
+            import warnings
+            warnings.warn(
+                f"Adding {len(chunks)} chunks to an existing collection with "
+                f"{len(existing['ids'])} entries. Run with reset=True (--reset) "
+                "to avoid duplicate chunks.",
+                stacklevel=2,
+            )
     vectorstore.add_documents(chunks)
     return len(chunks)
 

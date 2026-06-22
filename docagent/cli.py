@@ -5,8 +5,9 @@ import sys
 from pathlib import Path
 
 from docagent.config import Settings, settings
-from docagent.ingest import ingest
+from docagent.ingest import SUPPORTED_SUFFIXES, ingest
 from docagent.state import AgentState
+from docagent.vectorstore import get_vectorstore
 
 
 DEMO_SOURCE = Path("examples/mini_knowledge_base.md")
@@ -51,6 +52,85 @@ def run_compare(question: str, show_trace: bool = True) -> tuple[AgentState, Age
     return baseline_result, agent_result
 
 
+def run_status(config: Settings = settings) -> dict[str, object]:
+    data_files = list_data_files(config)
+    index = get_index_summary(config)
+
+    print("DocAgent status")
+    print(f"- Data directory: {config.source_dir}")
+    print(f"- Vector store: {config.persist_dir}")
+    print(f"- Collection: {config.collection_name}")
+    print(f"- Data files: {len(data_files)}")
+    print(f"- Indexed chunks: {index['chunk_count']}")
+    print(f"- Indexed sources: {len(index['sources'])}")
+
+    missing = sorted(set(data_files) - set(index["sources"]))
+    stale = sorted(set(index["sources"]) - set(data_files))
+
+    if data_files:
+        print("\nData files:")
+        for source in data_files:
+            marker = "indexed" if source in index["sources"] else "not indexed"
+            print(f"- {source} ({marker})")
+
+    if index["sources"]:
+        print("\nIndexed sources:")
+        for source, count in index["source_counts"].items():
+            print(f"- {source}: {count} chunks")
+
+    if missing:
+        print("\nNot indexed yet:")
+        for source in missing:
+            print(f"- {source}")
+        print("Run `docagent ingest --reset` to update the vector store.")
+
+    if stale:
+        print("\nIndexed but missing from data/:")
+        for source in stale:
+            print(f"- {source}")
+        print("Run `docagent ingest --reset` to remove stale entries.")
+
+    return {"data_files": data_files, **index, "missing": missing, "stale": stale}
+
+
+def run_sources(config: Settings = settings) -> dict[str, object]:
+    index = get_index_summary(config)
+    print("Indexed sources")
+    if not index["sources"]:
+        print("- <empty>")
+        print("Run `docagent ingest --reset` after adding documents to data/.")
+        return index
+
+    for source, count in index["source_counts"].items():
+        print(f"- {source}: {count} chunks")
+    return index
+
+
+def list_data_files(config: Settings = settings) -> list[str]:
+    if not config.source_dir.exists():
+        return []
+    files = []
+    for path in sorted(config.source_dir.rglob("*")):
+        if path.is_file() and not path.name.startswith(".") and path.suffix.lower() in SUPPORTED_SUFFIXES:
+            files.append(str(path))
+    return files
+
+
+def get_index_summary(config: Settings = settings) -> dict[str, object]:
+    vectorstore = get_vectorstore(config)
+    data = vectorstore.get(include=["metadatas"])
+    metadatas = data.get("metadatas") or []
+    source_counts: dict[str, int] = {}
+    for metadata in metadatas:
+        source = str((metadata or {}).get("source", "unknown"))
+        source_counts[source] = source_counts.get(source, 0) + 1
+    return {
+        "chunk_count": len(data.get("ids", [])),
+        "sources": sorted(source_counts),
+        "source_counts": dict(sorted(source_counts.items())),
+    }
+
+
 def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
     from docagent.main import ask, print_result
 
@@ -62,7 +142,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
     print("DocAgent chat")
     print(
         "Type a question and press Enter. Commands: /help, /trace on|off, "
-        "/baseline on|off, /compare <question>, /reset, /exit"
+        "/baseline on|off, /compare <question>, /status, /reset, /exit"
     )
 
     while True:
@@ -82,8 +162,12 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             print("- /trace on|off       Show or hide retrieve/rewrite trace.")
             print("- /baseline on|off    Switch between baseline RAG and DocAgent.")
             print("- /compare <question> Compare baseline RAG with DocAgent for one question.")
+            print("- /status             Show indexed files and chunks.")
             print("- /reset              Clear chat context.")
             print("- /exit               Leave chat.")
+            continue
+        if user_input == "/status":
+            run_status()
             continue
         if user_input == "/reset":
             last_question = None
@@ -116,11 +200,9 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             print_cli_error(error)
 
 
-def build_contextual_query(question: str, last_question: str | None, last_answer: str | None) -> str:
+def build_contextual_query(question: str, last_question: str | None, _last_answer: str | None) -> str:
     if not last_question:
         return question
-
-    del last_answer
 
     query = f"{last_question}；{question}"
     if any(keyword in question for keyword in ["几个", "多少", "三个", "第三", "还有", "不是"]):
@@ -148,8 +230,8 @@ def run_doctor(config: Settings = settings) -> int:
         ("EMBEDDING_API_KEY", bool(config.embedding_api_key), "required for ingest/retrieve"),
         (
             "EMBEDDING_BASE_URL",
-            bool(config.embedding_base_url),
-            f"current: {config.embedding_base_url or '<empty>'}",
+            True,
+            f"optional; current: {config.embedding_base_url or '<not set>'}",
         ),
         ("EMBEDDING_MODEL", bool(config.embedding_model), f"current: {config.embedding_model or '<empty>'}"),
     ]

@@ -8,6 +8,7 @@
 
 ```bash
 docagent demo
+docagent status
 ```
 
 手动方式：

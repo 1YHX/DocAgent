@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from docagent.cli import print_cli_error, run_chat, run_compare, run_demo, run_doctor
+from docagent.cli import print_cli_error, run_chat, run_compare, run_demo, run_doctor, run_sources, run_status
 from docagent.graph import build_graph
 from docagent.ingest import ingest
 from docagent.nodes import generate_baseline, retrieve
@@ -48,6 +48,8 @@ def main() -> None:
 
     subparsers.add_parser("doctor", help="Check .env and local configuration.")
     subparsers.add_parser("demo", help="Run the bundled mini knowledge-base demo.")
+    subparsers.add_parser("status", help="Show data files and indexed Chroma sources.")
+    subparsers.add_parser("sources", help="List sources currently stored in Chroma.")
 
     chat_parser = subparsers.add_parser("chat", help="Start an interactive DocAgent chat session.")
     chat_parser.add_argument("--show-trace", action="store_true", help="Show retrieve/rewrite trace by default.")
@@ -77,6 +79,14 @@ def main() -> None:
 
         if args.command == "demo":
             run_demo()
+            return
+
+        if args.command == "status":
+            run_status()
+            return
+
+        if args.command == "sources":
+            run_sources()
             return
 
         if args.command == "chat":

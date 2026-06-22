@@ -33,6 +33,7 @@ cp .env.example .env
 
 ```bash
 docagent doctor
+docagent status
 docagent ingest --reset
 docagent ask "你的问题" --show-trace
 ```
