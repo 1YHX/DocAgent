@@ -154,6 +154,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
 
         if not user_input:
             continue
+        user_input = _normalize_chat_command(user_input)
         if user_input in {"/exit", "/quit", "exit", "quit"}:
             print("bye")
             return
@@ -163,11 +164,15 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             print("- /baseline on|off    Switch between baseline RAG and DocAgent.")
             print("- /compare <question> Compare baseline RAG with DocAgent for one question.")
             print("- /status             Show indexed files and chunks.")
+            print("- /sources            Show indexed sources.")
             print("- /reset              Clear chat context.")
             print("- /exit               Leave chat.")
             continue
         if user_input == "/status":
             run_status()
+            continue
+        if user_input == "/sources":
+            run_sources()
             continue
         if user_input == "/reset":
             last_question = None
@@ -208,6 +213,16 @@ def build_contextual_query(question: str, last_question: str | None, _last_answe
     if any(keyword in question for keyword in ["几个", "多少", "三个", "第三", "还有", "不是"]):
         query += "；核实项目列表、项目数量、是否存在补充项目"
     return query
+
+
+def _normalize_chat_command(user_input: str) -> str:
+    aliases = {
+        "status": "/status",
+        "docagent status": "/status",
+        "sources": "/sources",
+        "docagent sources": "/sources",
+    }
+    return aliases.get(user_input.strip(), user_input)
 
 
 def _parse_toggle(command: str, current: bool, prefix: str) -> bool:

@@ -39,6 +39,14 @@ def test_parse_toggle():
     assert cli._parse_toggle("/trace maybe", True, "/trace") is True
 
 
+def test_normalize_chat_command_accepts_bare_cli_commands():
+    assert cli._normalize_chat_command("status") == "/status"
+    assert cli._normalize_chat_command("docagent status") == "/status"
+    assert cli._normalize_chat_command("sources") == "/sources"
+    assert cli._normalize_chat_command("docagent sources") == "/sources"
+    assert cli._normalize_chat_command("易海祥是谁") == "易海祥是谁"
+
+
 def test_build_contextual_query_without_history_returns_question():
     assert cli.build_contextual_query("不是三个项目嘛？", None, None) == "不是三个项目嘛？"
 
