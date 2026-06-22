@@ -10,6 +10,31 @@ from docagent.nodes import generate_baseline, retrieve
 from docagent.resume import answer_resume_project_question
 from docagent.state import AgentState
 
+_IDENTITY_TRIGGERS = (
+    "你是谁", "你是什么", "介绍一下你自己", "你叫什么", "你是哪个",
+    "who are you", "what are you", "introduce yourself",
+)
+
+_IDENTITY_ANSWER = (
+    "我是 **DocAgent**，一个带自我反思的文档问答 AI 助手。\n\n"
+    "**工作流程**：Retrieve 检索 → Grade 评估相关性 → Decide 决策 "
+    "（生成 / 改写重查 / 兜底）→ Generate 生成答案 → Self-check 自检。\n\n"
+    "与普通 RAG 不同，我会在生成前评估检索结果是否充分；不够会改写 query 重新检索；"
+    "确实找不到时明确说「资料中未找到相关信息」，不会编造答案。\n\n"
+    "你可以向我提问当前知识库中的内容。"
+)
+
+
+def _answer_identity_question(question: str) -> AgentState | None:
+    if any(t in question.lower() for t in _IDENTITY_TRIGGERS):
+        return {
+            "question": question,
+            "answer": _IDENTITY_ANSWER,
+            "self_check": "supported。这是 DocAgent 的系统身份介绍，不依赖知识库内容。",
+            "history": ["identity_shortcut: answered identity question directly"],
+        }
+    return None
+
 
 def ask(
     question: str,
@@ -30,6 +55,9 @@ def ask(
         retrieved = retrieve(initial)
         answer = generate_baseline({**initial, **retrieved})
         return {**initial, **retrieved, **answer}
+    identity_answer = _answer_identity_question(question)
+    if identity_answer:
+        return identity_answer
     structured_answer = answer_resume_project_question(question, query=search_query)
     if structured_answer:
         return structured_answer
