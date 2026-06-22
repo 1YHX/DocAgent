@@ -66,13 +66,15 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
                 "你是 RAG 检索质量评估器。判断每个片段是否包含回答问题所需的信息。"
                 "如果问题在核实列表、数量或是否遗漏，包含候选条目、项目细节或经历条目的片段也算相关，"
                 "即使片段没有直接写出总数。"
-                "只输出 JSON 数组，不要输出 Markdown。每项格式："
+                "只输出 JSON 对象，格式为 {{\"grades\": [...]}}，不要输出 Markdown。每项格式："
                 '{{"doc_index": 0, "relevant": true, "reason": "简短原因"}}',
             ),
             ("human", "问题：{question}\n\n候选片段：\n{context}"),
         ]
     )
-    response = (prompt | build_chat_model()).invoke(
+    # Bind JSON mode to eliminate markdown-wrapping and prose around the array.
+    grader = build_chat_model().bind(response_format={"type": "json_object"})
+    response = (prompt | grader).invoke(
         {"question": question_for_prompt(state), "context": format_documents(documents)}
     )
     grades = _parse_grades(str(response.content), len(documents))
