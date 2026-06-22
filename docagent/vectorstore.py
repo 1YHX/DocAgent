@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 from langchain_chroma import Chroma
 
 from docagent.config import Settings, settings
 from docagent.models import build_embeddings
 
 
+@lru_cache(maxsize=4)
 def get_vectorstore(config: Settings = settings) -> Chroma:
     return Chroma(
         collection_name=config.collection_name,
