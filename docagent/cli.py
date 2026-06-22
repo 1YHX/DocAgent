@@ -142,7 +142,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
     print("DocAgent chat")
     print(
         "Type a question and press Enter. Commands: /help, /trace on|off, "
-        "/baseline on|off, /compare <question>, /status, /reset, /exit"
+        "/baseline on|off, /compare <question>, /status, /ingest, /reset, /exit"
     )
 
     while True:
@@ -165,6 +165,8 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             print("- /compare <question> Compare baseline RAG with DocAgent for one question.")
             print("- /status             Show indexed files and chunks.")
             print("- /sources            Show indexed sources.")
+            print("- /ingest             Rebuild the vector store from data/.")
+            print("- /doctor             Check .env and local configuration.")
             print("- /reset              Clear chat context.")
             print("- /exit               Leave chat.")
             continue
@@ -173,6 +175,15 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             continue
         if user_input == "/sources":
             run_sources()
+            continue
+        if user_input == "/doctor":
+            run_doctor()
+            continue
+        if user_input == "/ingest":
+            count = ingest(reset=True)
+            last_question = None
+            last_answer = None
+            print(f"Ingested {count} chunks. Chat context cleared.")
             continue
         if user_input == "/reset":
             last_question = None
@@ -232,6 +243,14 @@ def _normalize_chat_command(user_input: str) -> str:
         "docagent status": "/status",
         "sources": "/sources",
         "docagent sources": "/sources",
+        "doctor": "/doctor",
+        "docagent doctor": "/doctor",
+        "ingest": "/ingest",
+        "ingest --reset": "/ingest",
+        "reindex": "/ingest",
+        "docagent ingest": "/ingest",
+        "docagent ingest --reset": "/ingest",
+        "docagent reindex": "/ingest",
     }
     return aliases.get(user_input.strip(), user_input)
 

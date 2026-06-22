@@ -59,6 +59,15 @@ docagent demo
 docagent
 ```
 
+在 `docagent>` 里可以直接执行常用维护命令：
+
+```text
+docagent status          # 查看 data/ 和向量库是否一致
+docagent sources         # 查看当前已入库来源
+docagent ingest --reset  # 重新读取 data/ 并重建向量库
+docagent doctor          # 检查 .env 和本地配置
+```
+
 对比普通 RAG 和 DocAgent：
 
 ```bash

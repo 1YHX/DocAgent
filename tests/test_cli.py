@@ -44,7 +44,41 @@ def test_normalize_chat_command_accepts_bare_cli_commands():
     assert cli._normalize_chat_command("docagent status") == "/status"
     assert cli._normalize_chat_command("sources") == "/sources"
     assert cli._normalize_chat_command("docagent sources") == "/sources"
+    assert cli._normalize_chat_command("doctor") == "/doctor"
+    assert cli._normalize_chat_command("docagent doctor") == "/doctor"
+    assert cli._normalize_chat_command("ingest") == "/ingest"
+    assert cli._normalize_chat_command("ingest --reset") == "/ingest"
+    assert cli._normalize_chat_command("reindex") == "/ingest"
+    assert cli._normalize_chat_command("docagent ingest --reset") == "/ingest"
+    assert cli._normalize_chat_command("docagent reindex") == "/ingest"
     assert cli._normalize_chat_command("易海祥是谁") == "易海祥是谁"
+
+
+def test_run_chat_handles_ingest_alias(monkeypatch, capsys):
+    calls = []
+    inputs = iter(["docagent ingest --reset", "/exit"])
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+    monkeypatch.setattr(cli, "ingest", lambda reset=False: calls.append(reset) or 3)
+
+    cli.run_chat()
+
+    output = capsys.readouterr().out
+    assert calls == [True]
+    assert "Ingested 3 chunks. Chat context cleared." in output
+
+
+def test_run_chat_handles_doctor_alias(monkeypatch, capsys):
+    calls = []
+    inputs = iter(["docagent doctor", "/exit"])
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+    monkeypatch.setattr(cli, "run_doctor", lambda: calls.append("doctor") or 0)
+
+    cli.run_chat()
+
+    assert calls == ["doctor"]
+    assert "DocAgent chat" in capsys.readouterr().out
 
 
 def test_build_contextual_query_without_history_returns_question():
