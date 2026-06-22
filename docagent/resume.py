@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import re
 import logging
+import re
 from pathlib import Path
 
-from langchain_community.document_loaders import PyPDFLoader
+from pypdf import PdfReader
 
 from docagent.config import Settings, settings
 from docagent.state import AgentState
@@ -73,9 +73,8 @@ def answer_resume_project_question(
 
 def _load_pdf_text(path: Path) -> str:
     logging.getLogger("pypdf").setLevel(logging.ERROR)
-    logging.getLogger("pypdf._reader").setLevel(logging.ERROR)
-    pages = PyPDFLoader(str(path)).load()
-    return "\n".join(page.page_content for page in pages)
+    reader = PdfReader(str(path))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
 def extract_project_titles(text: str) -> list[str]:

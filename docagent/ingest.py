@@ -1,17 +1,39 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import warnings
 from pathlib import Path
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pypdf import PdfReader
 
 from docagent.config import Settings, settings
 from docagent.vectorstore import get_vectorstore
 
 
 SUPPORTED_SUFFIXES = {".md", ".txt", ".pdf"}
+
+
+def _load_pdf(path: Path) -> list[Document]:
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
+    reader = PdfReader(str(path))
+    docs = []
+    for page_num, page in enumerate(reader.pages):
+        text = page.extract_text() or ""
+        docs.append(Document(
+            page_content=text,
+            metadata={"source": str(path), "page": page_num},
+        ))
+    return docs
+
+
+def _load_text(path: Path) -> list[Document]:
+    return [Document(
+        page_content=path.read_text(encoding="utf-8"),
+        metadata={"source": str(path)},
+    )]
 
 
 def load_documents(source_dir: Path) -> list[Document]:
@@ -23,9 +45,9 @@ def load_documents(source_dir: Path) -> list[Document]:
         if suffix not in SUPPORTED_SUFFIXES:
             continue
         if suffix == ".pdf":
-            documents.extend(PyPDFLoader(str(path)).load())
+            documents.extend(_load_pdf(path))
         else:
-            documents.extend(TextLoader(str(path), encoding="utf-8").load())
+            documents.extend(_load_text(path))
     return documents
 
 
@@ -54,7 +76,6 @@ def ingest(config: Settings = settings, reset: bool = False) -> int:
     else:
         existing = vectorstore.get()
         if existing and existing.get("ids"):
-            import warnings
             warnings.warn(
                 f"Adding {len(chunks)} chunks to an existing collection with "
                 f"{len(existing['ids'])} entries. Run with reset=True (--reset) "
