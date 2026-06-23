@@ -15,6 +15,11 @@ class Grade(TypedDict):
     reason: str
 
 
+class ConversationTurn(TypedDict):
+    question: str
+    answer: str
+
+
 class AgentState(TypedDict, total=False):
     question: str
     standalone_question: str
@@ -29,3 +34,4 @@ class AgentState(TypedDict, total=False):
     streamed: bool
     route: Route
     history: list[str]
+    chat_history: list[ConversationTurn]

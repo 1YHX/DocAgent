@@ -82,24 +82,38 @@ def test_run_chat_handles_doctor_alias(monkeypatch, capsys):
 
 
 def test_build_contextual_query_without_history_returns_question():
-    assert cli.build_contextual_query("不是三个项目嘛？", None, None) == "不是三个项目嘛？"
+    assert cli.build_contextual_query("不是三个项目嘛？", []) == "不是三个项目嘛？"
 
 
 def test_build_contextual_query_includes_previous_turn():
-    query = cli.build_contextual_query(
-        "不是三个项目嘛？",
-        "易海祥手里有什么项目，都介绍一下我看看",
-        "根据资料，易海祥手中有以下两个项目：日程助手和 Novel2Script。",
-    )
+    history = [
+        {
+            "question": "易海祥手里有什么项目，都介绍一下我看看",
+            "answer": "根据资料，易海祥手中有以下两个项目：日程助手和 Novel2Script。",
+        }
+    ]
+    query = cli.build_contextual_query("不是三个项目嘛？", history)
 
     assert "易海祥手里有什么项目，都介绍一下我看看；不是三个项目嘛？" in query
     assert "核实项目列表、项目数量、是否存在补充项目" in query
 
 
 def test_build_contextual_query_plain_follow_up_no_count_keywords():
-    query = cli.build_contextual_query("再介绍一下第一个", "易海祥有哪些项目", None)
+    history = [{"question": "易海祥有哪些项目", "answer": ""}]
+    query = cli.build_contextual_query("再介绍一下第一个", history)
     assert query == "易海祥有哪些项目；再介绍一下第一个"
     assert "核实" not in query
+
+
+def test_build_contextual_query_uses_only_last_two_turns():
+    history = [
+        {"question": "第一问", "answer": "答1"},
+        {"question": "第二问", "answer": "答2"},
+        {"question": "第三问", "answer": "答3"},
+    ]
+    query = cli.build_contextual_query("第四问", history)
+    assert "第一问" not in query
+    assert "第二问；第三问；第四问" == query
 
 
 def test_run_doctor_ok_when_all_set(capsys):

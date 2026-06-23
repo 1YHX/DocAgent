@@ -8,7 +8,7 @@ from docagent.graph import build_graph
 from docagent.ingest import ingest
 from docagent.nodes import generate_baseline, retrieve
 from docagent.resume import answer_resume_project_question
-from docagent.state import AgentState
+from docagent.state import AgentState, ConversationTurn
 
 _IDENTITY_TRIGGERS = (
     "你是谁", "你是什么", "介绍一下你自己", "你叫什么", "你是哪个",
@@ -41,6 +41,7 @@ def ask(
     baseline: bool = False,
     query: str | None = None,
     on_token: Callable[[str], None] | None = None,
+    chat_history: list[ConversationTurn] | None = None,
 ) -> AgentState:
     search_query = query or question
     history = [] if query is None else [f"contextual_query: {search_query}"]
@@ -50,6 +51,7 @@ def ask(
         "query": search_query,
         "retry_count": 0,
         "history": history,
+        "chat_history": chat_history or [],
     }
     if baseline:
         retrieved = retrieve(initial)

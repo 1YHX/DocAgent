@@ -6,8 +6,11 @@ from pathlib import Path
 
 from docagent.config import Settings, settings
 from docagent.ingest import SUPPORTED_SUFFIXES, ingest
-from docagent.state import AgentState
+from docagent.state import AgentState, ConversationTurn
 from docagent.vectorstore import get_vectorstore
+
+_HISTORY_WINDOW = 5
+_QUERY_CONTEXT_TURNS = 2
 
 
 DEMO_SOURCE = Path("examples/mini_knowledge_base.md")
@@ -136,8 +139,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
 
     trace_enabled = show_trace
     baseline_enabled = baseline
-    last_question: str | None = None
-    last_answer: str | None = None
+    chat_history: list[ConversationTurn] = []
 
     print("DocAgent chat")
     print(
@@ -181,13 +183,11 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             continue
         if user_input == "/ingest":
             count = ingest(reset=True)
-            last_question = None
-            last_answer = None
+            chat_history = []
             print(f"Ingested {count} chunks. Chat context cleared.")
             continue
         if user_input == "/reset":
-            last_question = None
-            last_answer = None
+            chat_history = []
             print("chat context cleared")
             continue
         if user_input.startswith("/trace"):
@@ -207,7 +207,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             continue
 
         try:
-            contextual_query = build_contextual_query(user_input, last_question, last_answer)
+            contextual_query = build_contextual_query(user_input, chat_history)
 
             def _on_token(chunk: str) -> None:
                 print(chunk, end="", flush=True)
@@ -215,23 +215,28 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
             result = ask(
                 user_input,
                 baseline=baseline_enabled,
+                chat_history=chat_history,
                 query=contextual_query,
                 on_token=None if baseline_enabled else _on_token,
             )
             if result.get("streamed"):
                 print()
             print_result(result, show_trace=trace_enabled)
-            last_question = user_input
-            last_answer = result.get("answer", "")
+            chat_history = (chat_history + [{"question": user_input, "answer": result.get("answer", "")}])[
+                -_HISTORY_WINDOW:
+            ]
         except Exception as error:
             print_cli_error(error)
 
 
-def build_contextual_query(question: str, last_question: str | None, _last_answer: str | None) -> str:
-    if not last_question:
+def build_contextual_query(question: str, chat_history: list[ConversationTurn]) -> str:
+    if not chat_history:
         return question
 
-    query = f"{last_question}；{question}"
+    recent = chat_history[-_QUERY_CONTEXT_TURNS:]
+    parts = [turn["question"] for turn in recent] + [question]
+    query = "；".join(parts)
+
     if any(keyword in question for keyword in ["几个", "多少", "三个", "第三", "还有", "不是"]):
         query += "；核实项目列表、项目数量、是否存在补充项目"
     return query

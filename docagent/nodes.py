@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from docagent.config import Settings, settings
 from docagent.models import build_chat_model
-from docagent.state import AgentState, Grade, Route
+from docagent.state import AgentState, ConversationTurn, Grade, Route
 from docagent.vectorstore import get_vectorstore
 
 TokenCallback = Callable[[str], None]
@@ -37,6 +37,14 @@ def _format_source_label(doc: Document) -> str:
 
 def question_for_prompt(state: AgentState) -> str:
     return state.get("standalone_question") or state["question"]
+
+
+def _format_chat_history_block(turns: list[ConversationTurn]) -> str:
+    lines = []
+    for turn in turns:
+        lines.append(f"用户：{turn['question']}")
+        lines.append(f"DocAgent：{turn['answer']}")
+    return "\n".join(lines)
 
 
 def retrieve(state: AgentState, app_settings: Settings = settings) -> AgentState:
@@ -285,7 +293,11 @@ def make_generate_node(on_token: TokenCallback | None = None) -> Callable[[Agent
             ]
         )
         chain = prompt | build_chat_model()
-        input_dict = {"question": question_for_prompt(state), "context": format_documents(docs)}
+        q = question_for_prompt(state)
+        history_block = _format_chat_history_block(state.get("chat_history") or [])
+        if history_block:
+            q = f"[历史对话]\n{history_block}\n\n[当前问题]\n{q}"
+        input_dict = {"question": q, "context": format_documents(docs)}
         if on_token:
             chunks = [chunk.content for chunk in chain.stream(input_dict) if chunk.content]
             for chunk in chunks:
@@ -320,8 +332,12 @@ def make_revise_node(on_token: TokenCallback | None = None) -> Callable[[AgentSt
             ]
         )
         chain = prompt | build_chat_model()
+        q = question_for_prompt(state)
+        history_block = _format_chat_history_block(state.get("chat_history") or [])
+        if history_block:
+            q = f"[历史对话]\n{history_block}\n\n[当前问题]\n{q}"
         input_dict = {
-            "question": question_for_prompt(state),
+            "question": q,
             "context": format_documents(docs),
             "answer": state.get("answer", ""),
             "self_check": state.get("self_check", ""),
