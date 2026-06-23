@@ -65,10 +65,10 @@ docagent compare "DocAgent 支持哪些多人协作文档权限？"
 
 ```text
 retrieve: ... -> 1 docs
-grade: 0/1 relevant docs
-grade_doc[0]: irrelevant - ...
-decide: rewrite (relevant=0, retry=0/2)
+grade: 0/1 relevant docs (avg_confidence=n/a, threshold=0.55)
+grade_doc[0]: irrelevant confidence=0.00 - ...
+decide: rewrite (relevant=0, avg_confidence=n/a, retry=0/2)
 rewrite[1]: ...
-decide: fallback (relevant=0, retry=2/2)
+decide: fallback (relevant=0, avg_confidence=n/a, retry=2/2)
 fallback: no sufficiently relevant evidence after retries
 ```

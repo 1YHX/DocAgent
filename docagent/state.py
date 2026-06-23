@@ -11,6 +11,7 @@ Route = Literal["generate", "rewrite", "fallback"]
 class Grade(TypedDict):
     doc_index: int
     relevant: bool
+    confidence: float
     reason: str
 
 

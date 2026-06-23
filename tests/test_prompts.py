@@ -20,7 +20,7 @@ def _make_fake_grader(content: str):
 
 
 def test_grade_returns_structured_grades(monkeypatch):
-    grader_content = '{"grades": [{"doc_index": 0, "relevant": true, "reason": "命中"}]}'
+    grader_content = '{"grades": [{"doc_index": 0, "relevant": true, "confidence": 0.91, "reason": "命中"}]}'
     monkeypatch.setattr(
         nodes,
         "build_chat_model",
@@ -34,8 +34,30 @@ def test_grade_returns_structured_grades(monkeypatch):
         }
     )
 
-    assert result["grades"] == [{"doc_index": 0, "relevant": True, "reason": "命中"}]
+    assert result["grades"] == [{"doc_index": 0, "relevant": True, "confidence": 0.91, "reason": "命中"}]
     assert len(result["relevant_documents"]) == 1
+
+
+def test_grade_filters_low_confidence_relevant_docs(monkeypatch):
+    grader_content = '{"grades": [{"doc_index": 0, "relevant": true, "confidence": 0.2, "reason": "只有弱相关"}]}'
+    monkeypatch.setattr(
+        nodes,
+        "build_chat_model",
+        lambda *_a, **_kw: _make_fake_grader(grader_content),
+    )
+
+    result = nodes.grade_documents(
+        {
+            "question": "DocAgent 的核心流程是什么？",
+            "documents": [Document(page_content="这里只提到了 DocAgent。")],
+        }
+    )
+
+    assert result["grades"] == [
+        {"doc_index": 0, "relevant": True, "confidence": 0.2, "reason": "只有弱相关"}
+    ]
+    assert result["relevant_documents"] == []
+    assert "threshold=0.55" in result["history"][-2]
 
 
 def test_grade_falls_back_when_json_is_array(monkeypatch):
@@ -54,5 +76,5 @@ def test_grade_falls_back_when_json_is_array(monkeypatch):
         }
     )
 
-    assert result["grades"] == [{"doc_index": 0, "relevant": False, "reason": "无关"}]
+    assert result["grades"] == [{"doc_index": 0, "relevant": False, "confidence": 0.0, "reason": "无关"}]
     assert result["relevant_documents"] == []

@@ -16,7 +16,9 @@ from langchain_core.documents import Document
 def test_parse_grades_filters_invalid_items():
     raw = '[{"doc_index": 0, "relevant": true, "reason": "命中"}, {"doc_index": 9, "relevant": true}]'
 
-    assert _parse_grades(raw, doc_count=1) == [{"doc_index": 0, "relevant": True, "reason": "命中"}]
+    assert _parse_grades(raw, doc_count=1) == [
+        {"doc_index": 0, "relevant": True, "confidence": 1.0, "reason": "命中"}
+    ]
 
 
 def test_parse_grades_accepts_fenced_json():
@@ -28,21 +30,34 @@ def test_parse_grades_accepts_fenced_json():
 ```"""
 
     assert _parse_grades(raw, doc_count=2) == [
-        {"doc_index": 0, "relevant": False, "reason": "只提到背景"},
-        {"doc_index": 1, "relevant": True, "reason": "包含答案"},
+        {"doc_index": 0, "relevant": False, "confidence": 0.0, "reason": "只提到背景"},
+        {"doc_index": 1, "relevant": True, "confidence": 1.0, "reason": "包含答案"},
     ]
 
 
 def test_parse_grades_accepts_wrapped_json_object():
-    raw = '{"grades": [{"doc_index": 0, "relevant": true, "reason": "命中"}]}'
+    raw = '{"grades": [{"doc_index": 0, "relevant": true, "confidence": 0.82, "reason": "命中"}]}'
 
-    assert _parse_grades(raw, doc_count=1) == [{"doc_index": 0, "relevant": True, "reason": "命中"}]
+    assert _parse_grades(raw, doc_count=1) == [
+        {"doc_index": 0, "relevant": True, "confidence": 0.82, "reason": "命中"}
+    ]
 
 
 def test_parse_grades_ignores_duplicate_indexes():
     raw = '[{"doc_index": 0, "relevant": true}, {"doc_index": 0, "relevant": false}]'
 
-    assert _parse_grades(raw, doc_count=1) == [{"doc_index": 0, "relevant": True, "reason": ""}]
+    assert _parse_grades(raw, doc_count=1) == [
+        {"doc_index": 0, "relevant": True, "confidence": 1.0, "reason": ""}
+    ]
+
+
+def test_parse_grades_clamps_confidence():
+    raw = '[{"doc_index": 0, "relevant": true, "confidence": 2}, {"doc_index": 1, "relevant": true, "confidence": -1}]'
+
+    assert _parse_grades(raw, doc_count=2) == [
+        {"doc_index": 0, "relevant": True, "confidence": 1.0, "reason": ""},
+        {"doc_index": 1, "relevant": True, "confidence": 0.0, "reason": ""},
+    ]
 
 
 def test_decide_generates_when_relevant_docs_are_enough():
@@ -66,10 +81,18 @@ def test_decide_falls_back_after_retry_limit():
 def test_decide_node_records_route_and_history():
     config = Settings(min_relevant_docs=1, max_retries=2)
 
-    result = decide_node({"relevant_documents": [], "retry_count": 0, "history": ["grade: 0/1 relevant docs"]}, config)
+    result = decide_node(
+        {
+            "relevant_documents": [],
+            "grades": [{"doc_index": 0, "relevant": True, "confidence": 0.4, "reason": "弱相关"}],
+            "retry_count": 0,
+            "history": ["grade: 0/1 relevant docs"],
+        },
+        config,
+    )
 
     assert result["route"] == "rewrite"
-    assert result["history"][-1] == "decide: rewrite (relevant=0, retry=0/2)"
+    assert result["history"][-1] == "decide: rewrite (relevant=0, avg_confidence=0.40, retry=0/2)"
     assert route_from_state(result) == "rewrite"
 
 

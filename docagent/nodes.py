@@ -88,7 +88,8 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
                 "如果问题在核实列表、数量或是否遗漏，包含候选条目、项目细节或经历条目的片段也算相关，"
                 "即使片段没有直接写出总数。"
                 "只输出 JSON 对象，格式为 {{\"grades\": [...]}}，不要输出 Markdown。每项格式："
-                '{{"doc_index": 0, "relevant": true, "reason": "简短原因"}}',
+                '{{"doc_index": 0, "relevant": true, "confidence": 0.0, "reason": "简短原因"}}。'
+                "confidence 是 0 到 1 的小数，表示该片段足以回答问题的把握。",
             ),
             ("human", "问题：{question}\n\n候选片段：\n{context}"),
         ]
@@ -99,9 +100,17 @@ def grade_documents(state: AgentState, app_settings: Settings = settings) -> Age
         {"question": question_for_prompt(state), "context": format_documents(documents)}
     )
     grades = _parse_grades(str(response.content), len(documents))
-    relevant_docs = [documents[item["doc_index"]] for item in grades if item["relevant"]]
+    relevant_docs = [
+        documents[item["doc_index"]]
+        for item in grades
+        if item["relevant"] and item["confidence"] >= app_settings.min_relevance_confidence
+    ]
+    avg_confidence = _avg_relevant_confidence(grades)
     history = state.get("history", []) + [
-        f"grade: {len(relevant_docs)}/{len(documents)} relevant docs",
+        (
+            f"grade: {len(relevant_docs)}/{len(documents)} relevant docs "
+            f"(avg_confidence={_format_confidence(avg_confidence)}, threshold={app_settings.min_relevance_confidence:.2f})"
+        ),
         *_format_grade_reasons(grades),
     ]
     return {"grades": grades, "relevant_documents": relevant_docs, "history": history}
@@ -132,10 +141,34 @@ def _parse_grades(raw: str, doc_count: int) -> list[Grade]:
             {
                 "doc_index": index,
                 "relevant": bool(item.get("relevant")),
+                "confidence": _parse_confidence(item.get("confidence"), bool(item.get("relevant"))),
                 "reason": str(item.get("reason", "")),
             }
         )
     return grades
+
+
+def _parse_confidence(raw: object, relevant: bool) -> float:
+    if raw is None:
+        return 1.0 if relevant else 0.0
+    try:
+        confidence = float(raw)
+    except (TypeError, ValueError):
+        return 1.0 if relevant else 0.0
+    return max(0.0, min(1.0, confidence))
+
+
+def _avg_relevant_confidence(grades: list[Grade]) -> float | None:
+    confidences = [grade["confidence"] for grade in grades if grade["relevant"]]
+    if not confidences:
+        return None
+    return sum(confidences) / len(confidences)
+
+
+def _format_confidence(confidence: float | None) -> str:
+    if confidence is None:
+        return "n/a"
+    return f"{confidence:.2f}"
 
 
 def _extract_json_payload(raw: str) -> str:
@@ -174,8 +207,13 @@ def decide_node(state: AgentState, app_settings: Settings = settings) -> AgentSt
     route = decide(state, app_settings)
     relevant_count = len(state.get("relevant_documents", []))
     retry_count = state.get("retry_count", 0)
+    avg_confidence = _avg_relevant_confidence(state.get("grades", []))
     history = state.get("history", []) + [
-        f"decide: {route} (relevant={relevant_count}, retry={retry_count}/{app_settings.max_retries})"
+        (
+            f"decide: {route} "
+            f"(relevant={relevant_count}, avg_confidence={_format_confidence(avg_confidence)}, "
+            f"retry={retry_count}/{app_settings.max_retries})"
+        )
     ]
     return {"route": route, "history": history}
 
@@ -189,10 +227,11 @@ def _format_grade_reasons(grades: list[Grade]) -> list[str]:
     for grade in grades:
         verdict = "relevant" if grade["relevant"] else "irrelevant"
         reason = grade["reason"].strip()
+        confidence = f"confidence={grade['confidence']:.2f}"
         if reason:
-            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict} - {reason}")
+            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict} {confidence} - {reason}")
         else:
-            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict}")
+            reasons.append(f"grade_doc[{grade['doc_index']}]: {verdict} {confidence}")
     return reasons
 
 

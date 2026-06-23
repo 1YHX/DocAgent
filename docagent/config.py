@@ -20,6 +20,16 @@ def _int_env(name: str, default: int) -> int:
         raise ValueError(f"{name}={value!r} is not a valid integer.") from None
 
 
+def _float_env(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(f"{name}={value!r} is not a valid float.") from None
+
+
 @dataclass(frozen=True)
 class Settings:
     chat_api_key: str | None = os.getenv("CHAT_API_KEY")
@@ -36,6 +46,7 @@ class Settings:
 
     top_k: int = _int_env("DOCAGENT_TOP_K", 4)
     min_relevant_docs: int = _int_env("DOCAGENT_MIN_RELEVANT_DOCS", 1)
+    min_relevance_confidence: float = _float_env("DOCAGENT_MIN_RELEVANCE_CONFIDENCE", 0.55)
     max_retries: int = _int_env("DOCAGENT_MAX_RETRIES", 2)
     chunk_size: int = _int_env("DOCAGENT_CHUNK_SIZE", 1200)
     chunk_overlap: int = _int_env("DOCAGENT_CHUNK_OVERLAP", 180)
