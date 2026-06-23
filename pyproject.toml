@@ -16,6 +16,7 @@ dependencies = [
     "langchain-chroma>=0.2.0",
     "langgraph>=0.3.0",
     "chromadb>=0.5.0",
+    "prompt-toolkit>=3.0.0",
     "python-dotenv>=1.0.1",
     "pypdf>=5.0.0",
 ]

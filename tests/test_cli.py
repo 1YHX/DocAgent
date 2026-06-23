@@ -58,7 +58,7 @@ def test_run_chat_handles_ingest_alias(monkeypatch, capsys):
     calls = []
     inputs = iter(["docagent ingest --reset", "/exit"])
 
-    monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+    monkeypatch.setattr(cli, "_read_chat_input", lambda: next(inputs))
     monkeypatch.setattr(cli, "ingest", lambda reset=False: calls.append(reset) or 3)
 
     cli.run_chat()
@@ -72,7 +72,7 @@ def test_run_chat_handles_doctor_alias(monkeypatch, capsys):
     calls = []
     inputs = iter(["docagent doctor", "/exit"])
 
-    monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+    monkeypatch.setattr(cli, "_read_chat_input", lambda: next(inputs))
     monkeypatch.setattr(cli, "run_doctor", lambda: calls.append("doctor") or 0)
 
     cli.run_chat()

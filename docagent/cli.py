@@ -147,7 +147,7 @@ def run_chat(show_trace: bool = False, baseline: bool = False) -> None:
 
     while True:
         try:
-            user_input = input("\ndocagent> ").strip()
+            user_input = _read_chat_input().strip()
         except (EOFError, KeyboardInterrupt):
             print("\nbye")
             return
@@ -253,6 +253,18 @@ def _normalize_chat_command(user_input: str) -> str:
         "docagent reindex": "/ingest",
     }
     return aliases.get(user_input.strip(), user_input)
+
+
+def _read_chat_input() -> str:
+    if not sys.stdin.isatty():
+        return input("\ndocagent> ")
+
+    print()
+    try:
+        from prompt_toolkit import prompt
+    except ImportError:
+        return input("docagent> ")
+    return prompt("docagent> ")
 
 
 def _parse_toggle(command: str, current: bool, prefix: str) -> bool:
