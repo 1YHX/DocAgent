@@ -76,7 +76,7 @@ docagent compare "DocAgent 使用了哪家公司的线上向量数据库？"
 
 ## 对照实验
 
-知识库：`data/docagent_demo.md`（DocAgent 介绍）+ `data/易海祥-简历.pdf`，共 5 chunks。
+知识库：`data/docagent_demo.md`（DocAgent 介绍）+ 一份个人简历 PDF，共 5 chunks。
 
 | # | 问题 | Baseline RAG | DocAgent | 关键差异 |
 |---|------|-------------|---------|---------|

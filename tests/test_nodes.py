@@ -99,7 +99,7 @@ def test_decide_node_records_route_and_history():
 def test_project_queries_expand_retrieval_k():
     config = Settings(top_k=4)
 
-    assert search_k_for_query("易海祥有哪些项目", config) == 8
+    assert search_k_for_query("张三有哪些项目", config) == 8
     assert search_k_for_query("DocAgent 的核心流程是什么", config) == 4
 
 

@@ -127,4 +127,4 @@ def _dedupe(items: list[str]) -> list[str]:
 
 
 def _is_pdf_header(title: str) -> bool:
-    return title == "易海祥" or "简历" in title
+    return "简历" in title or len(title) <= 4

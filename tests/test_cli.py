@@ -51,7 +51,7 @@ def test_normalize_chat_command_accepts_bare_cli_commands():
     assert cli._normalize_chat_command("reindex") == "/ingest"
     assert cli._normalize_chat_command("docagent ingest --reset") == "/ingest"
     assert cli._normalize_chat_command("docagent reindex") == "/ingest"
-    assert cli._normalize_chat_command("易海祥是谁") == "易海祥是谁"
+    assert cli._normalize_chat_command("张三是谁") == "张三是谁"
 
 
 def test_run_chat_handles_ingest_alias(monkeypatch, capsys):
@@ -88,20 +88,20 @@ def test_build_contextual_query_without_history_returns_question():
 def test_build_contextual_query_includes_previous_turn():
     history = [
         {
-            "question": "易海祥手里有什么项目，都介绍一下我看看",
-            "answer": "根据资料，易海祥手中有以下两个项目：日程助手和 Novel2Script。",
+            "question": "张三手里有什么项目，都介绍一下我看看",
+            "answer": "根据资料，张三手中有以下两个项目：日程助手和 Novel2Script。",
         }
     ]
     query = cli.build_contextual_query("不是三个项目嘛？", history)
 
-    assert "易海祥手里有什么项目，都介绍一下我看看；不是三个项目嘛？" in query
+    assert "张三手里有什么项目，都介绍一下我看看；不是三个项目嘛？" in query
     assert "核实项目列表、项目数量、是否存在补充项目" in query
 
 
 def test_build_contextual_query_plain_follow_up_no_count_keywords():
-    history = [{"question": "易海祥有哪些项目", "answer": ""}]
+    history = [{"question": "张三有哪些项目", "answer": ""}]
     query = cli.build_contextual_query("再介绍一下第一个", history)
-    assert query == "易海祥有哪些项目；再介绍一下第一个"
+    assert query == "张三有哪些项目；再介绍一下第一个"
     assert "核实" not in query
 
 

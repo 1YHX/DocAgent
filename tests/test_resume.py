@@ -68,6 +68,6 @@ def test_dedupe_normalizes_whitespace():
 
 
 def test_is_pdf_header_filters_name_and_resume():
-    assert _is_pdf_header("易海祥") is True
     assert _is_pdf_header("个人简历") is True
+    assert _is_pdf_header("张三") is True
     assert _is_pdf_header("SightMate Web 端 AI 视觉对话助手") is False
