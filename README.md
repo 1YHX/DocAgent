@@ -121,7 +121,7 @@ Chat 模式使用 `chain.stream()` 逐 token 打印，避免 LLM 响应延迟带
 ## 已知局限
 
 - `resume.py` 的项目计数逻辑与简历格式强耦合，换格式需要重写。
-- 引用粒度目前是文件路径 + chunk 编号，尚未精确到 PDF 页码。
+- 引用粒度目前是文件路径 + PDF 页码 + chunk 编号，尚未做到原文高亮定位。
 - 多文档大知识库下 top-k 扩大策略（当前硬编码关键词判断）可改为动态计算。
 - Chat 上下文拼接仅保留上一轮，多轮深度追问时上下文可能不足。
 
@@ -134,7 +134,8 @@ Chat 模式使用 `chain.stream()` 逐 token 打印，避免 LLM 响应延迟带
 - [x] Chat 流式输出
 - [x] Grade 节点 JSON 模式（消除解析失败）
 - [x] LLM 实例缓存 + 超时重试
+- [x] PDF 来源引用显示页码
 - [x] 对照 demo 语料与演示说明
 - [x] Benchmark 脚本（`scripts/benchmark.py`）
 - [ ] README 实验截图/文本（跑完 `benchmark.py` 后填入）
-- [ ] 来源引用精确到 PDF 页码
+- [ ] 来源引用原文高亮定位

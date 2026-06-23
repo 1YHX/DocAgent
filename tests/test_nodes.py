@@ -127,6 +127,20 @@ def test_format_documents_includes_source_and_chunk_id():
     assert "Hello world" in output
 
 
+def test_format_documents_includes_one_based_pdf_page():
+    docs = [Document(page_content="PDF text", metadata={"source": "resume.pdf", "page": 0, "chunk_id": 3})]
+    output = format_documents(docs)
+
+    assert "[1] source=resume.pdf page=1 chunk=3" in output
+
+
+def test_format_documents_keeps_non_numeric_page_metadata():
+    docs = [Document(page_content="PDF text", metadata={"source": "resume.pdf", "page": "cover", "chunk_id": 3})]
+    output = format_documents(docs)
+
+    assert "page=cover" in output
+
+
 def test_format_documents_handles_missing_metadata():
     docs = [Document(page_content="bare")]
     output = format_documents(docs)

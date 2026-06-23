@@ -17,10 +17,22 @@ TokenCallback = Callable[[str], None]
 def format_documents(documents: list[Document]) -> str:
     blocks = []
     for index, doc in enumerate(documents, start=1):
-        source = doc.metadata.get("source", "unknown")
-        chunk_id = doc.metadata.get("chunk_id", "?")
-        blocks.append(f"[{index}] source={source} chunk={chunk_id}\n{doc.page_content}")
+        blocks.append(f"[{index}] {_format_source_label(doc)}\n{doc.page_content}")
     return "\n\n".join(blocks)
+
+
+def _format_source_label(doc: Document) -> str:
+    source = doc.metadata.get("source", "unknown")
+    chunk_id = doc.metadata.get("chunk_id", "?")
+    parts = [f"source={source}"]
+    if "page" in doc.metadata:
+        try:
+            page = int(doc.metadata["page"]) + 1
+        except (TypeError, ValueError):
+            page = doc.metadata["page"]
+        parts.append(f"page={page}")
+    parts.append(f"chunk={chunk_id}")
+    return " ".join(parts)
 
 
 def question_for_prompt(state: AgentState) -> str:
